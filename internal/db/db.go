@@ -243,6 +243,25 @@ func (d *DB) GetTestResults(limit, offset int, search string) ([]models.TestResu
 	return results, total, nil
 }
 
+// GetTestResultByID retrieves a single test result by its ID for sharing.
+func (d *DB) GetTestResultByID(id int64) (*models.TestResult, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	var item models.TestResult
+	query := `SELECT id, timestamp, ip, download_mbps, upload_mbps, ping_ms, jitter_ms, user_agent, isp, city, country, country_code 
+	          FROM test_results WHERE id = ?`
+	err := d.conn.QueryRow(query, id).Scan(
+		&item.ID, &item.Timestamp, &item.IP, &item.DownloadMbps, &item.UploadMbps,
+		&item.PingMs, &item.JitterMs, &item.UserAgent, &item.ISP,
+		&item.City, &item.Country, &item.CountryCode,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &item, nil
+}
+
 // SaveBotLog logs a blocked request and enforces maximum 10,000 rows.
 func (d *DB) SaveBotLog(logItem *models.BotLog) error {
 	d.mu.Lock()

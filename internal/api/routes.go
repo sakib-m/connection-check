@@ -75,6 +75,9 @@ func (r *Router) setupRoutes() {
 	// Save test result (also rate limited)
 	r.mux.Handle("/api/speedtest/results", botProtected(http.HandlerFunc(r.speedtest.HandleSaveResult)))
 
+	// Fetch single test result for sharing
+	r.mux.HandleFunc("/api/speedtest/result", r.speedtest.HandleGetResult)
+
 	// Admin Panel UI
 	r.mux.HandleFunc("/data", r.admin.ServeDashboardPage)
 	r.mux.HandleFunc("/data/login", func(w http.ResponseWriter, req *http.Request) {

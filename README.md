@@ -32,29 +32,67 @@ Designed to run as a lightweight container on **port 3000** behind your preferre
 - **Comprehensive Test Logs Table**:
   - Columns: `Timestamp (UTC)`, `Client IP`, `Download (Mbps)`, `Upload (Mbps)`, `Ping (ms)`, `Jitter (ms)`, `ISP`, `Location`, `User Agent`.
   - Live search, pagination, and **one-click CSV export**.
-- **Blocked Bots Inspection Menu**: Paginated view of blocked attempts with reason, request path, source IP, and User-Agent.
+- **Shareable Test Results**: After every completed test, users can click **"Share Result"** (native mobile share sheet or direct link `/?result=123`). The Admin panel also includes a one-click **"Share"** button on each recorded row.
+- **System Theme Auto-Detection**: Automatically detects and adheres to the user's OS Dark/Light mode preference, with a quick manual toggle button.
+- **Mobile-First Responsive Layout**: Optimized touch targets, scaled canvas speedometer gauge, and flexible grid cards for phones, tablets, and desktops.
 
 ---
 
-## 🚀 Quick Start with Docker Compose
+## ⚡ Concurrency & Threading Architecture
 
-### 1. Launch with Docker Compose
+| Phase | Concurrency / Threads | Description |
+|---|---|---|
+| **Download** | **4 parallel HTTP streams** | 4 concurrent streaming readers pull uncompressible chunks in parallel to saturate multi-gigabit connections without client buffer bloat. |
+| **Upload** | **4 parallel upload workers** | 4 asynchronous workers transmit progressive 512KB binary chunks to the server for smooth continuous throughput tracking. |
+| **Ping & Jitter** | **Sequential micro-rounds (10 pings)** | 10 rapid-fire round trips with microsecond timestamps calculating median latency and RFC 3550 jitter variance. |
 
-**Option 1: Build locally from source**
+---
+
+## 🚀 Quick Start & Deployment Options
+
+### Option 1: Run Pre-Built Image from Docker Hub (Fastest)
+
+```bash
+docker compose up -d
+```
+*(By default, `docker-compose.yml` pulls and runs `sakib-m/connection-check:latest`)*
+
+Or run directly with Docker CLI:
+```bash
+docker run -d --name connection_check -p 3000:3000 -v $(pwd)/data:/app/data sakib-m/connection-check:latest
+```
+
+---
+
+### Option 2: Run Pre-Built Image from GitHub Container Registry (GHCR)
+
+In `docker-compose.yml`, change the image:
+```yaml
+services:
+  app:
+    image: ghcr.io/sakib-m/connection-check:latest
+```
+Then run:
+```bash
+docker compose up -d
+```
+
+---
+
+### Option 3: Build & Run Manually from Source
+
+**Using Docker Compose:**
 ```bash
 docker compose up -d --build
 ```
 
-**Option 2: Use pre-built Docker image from GitHub Container Registry (Instant start, no compiling)**
-Edit `docker-compose.yml` to use your published image:
-```yaml
-services:
-  app:
-    image: ghcr.io/<your-github-username>/connection-check:latest
-```
-Then start instantly:
+**Or using Docker CLI manually:**
 ```bash
-docker compose up -d
+# 1. Build the image locally
+docker build -t sakib-m/connection-check:latest .
+
+# 2. Run the container
+docker run -d --name connection_check -p 3000:3000 -v $(pwd)/data:/app/data sakib-m/connection-check:latest
 ```
 
 The application runs directly on **port 3000**:

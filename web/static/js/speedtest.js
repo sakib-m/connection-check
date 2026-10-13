@@ -567,6 +567,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const data = await res.json();
+            if (data.id) {
+                lastSavedTestId = data.id;
+            }
             if (data.remaining !== undefined) {
                 quotaRemaining.textContent = data.remaining;
             }
@@ -645,6 +648,98 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Share Button Event Listener
+    const shareBtn = document.getElementById('share-btn');
+    const shareBtnText = document.getElementById('share-btn-text');
+    let lastSavedTestId = null;
+
+    if (shareBtn) {
+        shareBtn.addEventListener('click', async () => {
+            const shareUrl = window.location.origin + '/?result=' + (lastSavedTestId || '');
+            const shareText = `🚀 Speedtest Result:\n📥 Download: ${finalDownload.toFixed(1)} Mbps\n📤 Upload: ${finalUpload.toFixed(1)} Mbps\n📶 Ping: ${finalPing.toFixed(1)} ms | Jitter: ${finalJitter.toFixed(1)} ms\n\nView details: ${shareUrl}`;
+
+            if (navigator.share) {
+                try {
+                    await navigator.share({
+                        title: 'My Speedtest Result',
+                        text: shareText,
+                        url: shareUrl
+                    });
+                    return;
+                } catch (e) {
+                    // Fallback to clipboard
+                }
+            }
+
+            navigator.clipboard.writeText(shareUrl).then(() => {
+                const orig = shareBtnText ? shareBtnText.textContent : 'Share';
+                if (shareBtnText) shareBtnText.textContent = 'Link Copied!';
+                setTimeout(() => { if (shareBtnText) shareBtnText.textContent = orig; }, 2000);
+            }).catch(() => {
+                prompt('Copy shareable link:', shareUrl);
+            });
+        });
+    }
+
+    // Check if loading a shared test result (?result=123)
+    async function checkSharedResult() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const resultId = urlParams.get('result');
+        if (!resultId) return;
+
+        try {
+            const res = await fetch('/api/speedtest/result?id=' + encodeURIComponent(resultId));
+            if (!res.ok) return;
+            const data = await res.json();
+
+            lastSavedTestId = data.id;
+            finalDownload = data.download_mbps;
+            finalUpload = data.upload_mbps;
+            finalPing = data.ping_ms;
+            finalJitter = data.jitter_ms;
+
+            metricPing.textContent = data.ping_ms.toFixed(1);
+            metricJitter.textContent = data.jitter_ms.toFixed(1);
+            metricDownload.textContent = data.download_mbps.toFixed(1);
+            metricUpload.textContent = data.upload_mbps.toFixed(1);
+
+            barPing.style.width = Math.min((data.ping_ms / 200) * 100, 100) + '%';
+            barJitter.style.width = Math.min((data.jitter_ms / 50) * 100, 100) + '%';
+            barDownload.style.width = Math.min((data.download_mbps / 500) * 100, 100) + '%';
+            barUpload.style.width = Math.min((data.upload_mbps / 300) * 100, 100) + '%';
+
+            targetGaugeSpeed = data.download_mbps;
+            gaugeLabel.textContent = 'DOWNLOAD';
+
+            ipDisplay.textContent = data.ip;
+            ispDisplay.textContent = data.isp || 'Broadband ISP';
+            const loc = [data.city, data.country].filter(Boolean).join(', ');
+            locationDisplay.textContent = loc || 'Shared Result';
+
+            phaseText.textContent = 'Viewing Shared Speedtest Result #' + data.id;
+            const metaText = document.getElementById('result-meta-text');
+            if (metaText) {
+                const dateStr = new Date(data.timestamp).toLocaleString();
+                metaText.textContent = `Recorded on ${dateStr} for ${data.ip} (${data.isp})`;
+            }
+
+            let rating = 'Standard';
+            if (data.download_mbps >= 200 && data.ping_ms <= 15) {
+                rating = 'Fiber Elite (Ideal for 8K streaming & competitive gaming)';
+            } else if (data.download_mbps >= 50 && data.ping_ms <= 30) {
+                rating = 'Ultra Fast (Excellent for 4K streaming & video calls)';
+            } else if (data.download_mbps >= 20) {
+                rating = 'Good (HD streaming & everyday work)';
+            } else {
+                rating = 'Fair (Basic web browsing)';
+            }
+            connectionRating.textContent = 'Rating: ' + rating;
+            resultModal.classList.remove('hidden');
+        } catch (e) {
+            console.warn('Failed to load shared result:', e);
+        }
+    }
+
     // Event Listeners
     startBtn.addEventListener('click', runSpeedTest);
     restartBtn.addEventListener('click', () => {
@@ -657,4 +752,5 @@ document.addEventListener('DOMContentLoaded', () => {
     initChart();
     animateGauge();
     fetchIPInfo();
+    checkSharedResult();
 });

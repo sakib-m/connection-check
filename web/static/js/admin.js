@@ -121,6 +121,12 @@ async function loadTests(page = 1) {
                     <td class="py-3 px-4 text-slate-300 max-w-[150px] truncate" title="${escapeHTML(row.isp)}">${escapeHTML(row.isp || 'Unknown')}</td>
                     <td class="py-3 px-4 text-slate-400 whitespace-nowrap">${escapeHTML(location)}</td>
                     <td class="py-3 px-4 text-slate-500 max-w-[200px] truncate font-mono text-[10px]" title="${escapeHTML(row.user_agent)}">${escapeHTML(row.user_agent)}</td>
+                    <td class="py-3 px-4 text-center whitespace-nowrap">
+                        <button onclick="copyAdminShareLink(${row.id})" id="share-link-btn-${row.id}" class="px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-cyan-600 dark:text-cyan-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition inline-flex items-center gap-1 text-[11px]" title="Copy Share Link">
+                            <i data-lucide="share-2" class="w-3.5 h-3.5"></i>
+                            <span>Share</span>
+                        </button>
+                    </td>
                 </tr>
             `;
         }).join('');
@@ -130,9 +136,26 @@ async function loadTests(page = 1) {
         document.getElementById('tests-prev-btn').disabled = (data.page <= 1);
         document.getElementById('tests-next-btn').disabled = (data.page >= totalPages);
 
+        if (window.lucide) lucide.createIcons();
     } catch (e) {
-        tbody.innerHTML = `<tr><td colspan="9" class="py-8 text-center text-rose-400">Error loading records: ${e.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="10" class="py-8 text-center text-rose-400">Error loading records: ${e.message}</td></tr>`;
     }
+}
+
+function copyAdminShareLink(id) {
+    const url = window.location.origin + '/?result=' + id;
+    navigator.clipboard.writeText(url).then(() => {
+        const btn = document.getElementById('share-link-btn-' + id);
+        if (btn) {
+            btn.innerHTML = `<span class="text-emerald-500 font-semibold">Copied!</span>`;
+            setTimeout(() => {
+                btn.innerHTML = `<i data-lucide="share-2" class="w-3.5 h-3.5"></i> <span>Share</span>`;
+                if (window.lucide) lucide.createIcons();
+            }, 1800);
+        }
+    }).catch(() => {
+        prompt('Share link:', url);
+    });
 }
 
 function prevTestsPage() {

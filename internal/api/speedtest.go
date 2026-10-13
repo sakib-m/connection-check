@@ -254,3 +254,28 @@ func (h *SpeedTestHandler) HandleSaveResult(w http.ResponseWriter, r *http.Reque
 		"remaining": remaining,
 	})
 }
+
+// HandleGetResult retrieves a saved test result by ID for sharing.
+func (h *SpeedTestHandler) HandleGetResult(w http.ResponseWriter, r *http.Request) {
+	idStr := r.URL.Query().Get("id")
+	if idStr == "" {
+		http.Error(w, "Missing test ID", http.StatusBadRequest)
+		return
+	}
+
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid test ID", http.StatusBadRequest)
+		return
+	}
+
+	result, err := h.database.GetTestResultByID(id)
+	if err != nil {
+		http.Error(w, "Result not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "public, max-age=3600")
+	_ = json.NewEncoder(w).Encode(result)
+}

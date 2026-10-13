@@ -1,16 +1,25 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>SpeedTest & Network Quality Check</title>
-    <!-- Prevent theme flash -->
+    <!-- System UI Theme by default -->
     <script>
-        if (localStorage.getItem('theme') === 'light' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: light)').matches)) {
-            document.documentElement.classList.remove('dark');
-        } else {
-            document.documentElement.classList.add('dark');
+        function applyTheme() {
+            const saved = localStorage.getItem('theme');
+            if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
         }
+        applyTheme();
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+            if (!localStorage.getItem('theme')) {
+                applyTheme();
+            }
+        });
     </script>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -38,19 +47,19 @@
     <!-- Top Navigation -->
     <header class="border-b border-slate-200 dark:border-slate-800/80 bg-white/80 dark:bg-slate-950/70 backdrop-blur-md sticky top-0 z-40 transition-colors">
         <div class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-            <div class="flex items-center space-x-3">
-                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
-                    <i data-lucide="activity" class="w-6 h-6 text-white"></i>
+            <div class="flex items-center space-x-2.5 sm:space-x-3">
+                <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20 flex-shrink-0">
+                    <i data-lucide="activity" class="w-5 h-5 sm:w-6 sm:h-6 text-white"></i>
                 </div>
                 <div>
-                    <span class="font-bold text-lg tracking-tight bg-gradient-to-r from-slate-900 via-slate-700 to-cyan-600 dark:from-white dark:via-slate-200 dark:to-cyan-400 bg-clip-text text-transparent">SpeedTest Pro</span>
-                    <span class="text-xs ml-1 px-1.5 py-0.5 rounded bg-cyan-100 dark:bg-cyan-950 text-cyan-700 dark:text-cyan-400 border border-cyan-300 dark:border-cyan-800 font-medium">Fiber Ready</span>
+                    <span class="font-bold text-base sm:text-lg tracking-tight bg-gradient-to-r from-slate-900 via-slate-700 to-cyan-600 dark:from-white dark:via-slate-200 dark:to-cyan-400 bg-clip-text text-transparent">SpeedTest Pro</span>
+                    <span class="hidden xs:inline-block text-[11px] ml-1 px-1.5 py-0.5 rounded bg-cyan-100 dark:bg-cyan-950 text-cyan-700 dark:text-cyan-400 border border-cyan-300 dark:border-cyan-800 font-medium">Fiber Ready</span>
                 </div>
             </div>
             
-            <div class="flex items-center space-x-3">
+            <div class="flex items-center space-x-2 sm:space-x-3">
                 <!-- Theme Switcher Button -->
-                <button id="theme-toggle-btn" class="p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:text-cyan-500 dark:hover:text-cyan-400 transition" title="Toggle Light/Dark Theme">
+                <button id="theme-toggle-btn" class="p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:text-cyan-500 dark:hover:text-cyan-400 transition" title="Toggle Light/Dark/System Theme">
                     <i data-lucide="sun" id="sun-icon" class="w-4 h-4 hidden dark:block"></i>
                     <i data-lucide="moon" id="moon-icon" class="w-4 h-4 block dark:hidden"></i>
                 </button>
@@ -62,66 +71,67 @@
                 </div>
 
                 <!-- Admin Link -->
-                <a href="/data" class="flex items-center space-x-1.5 text-xs text-slate-600 dark:text-slate-400 hover:text-cyan-600 dark:hover:text-cyan-400 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:border-cyan-500/40 transition">
+                <a href="/data" class="flex items-center space-x-1 sm:space-x-1.5 text-xs text-slate-600 dark:text-slate-400 hover:text-cyan-600 dark:hover:text-cyan-400 px-2.5 sm:px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:border-cyan-500/40 transition">
                     <i data-lucide="shield" class="w-3.5 h-3.5"></i>
-                    <span>Admin Panel</span>
+                    <span class="hidden sm:inline">Admin Panel</span>
+                    <span class="sm:hidden">Admin</span>
                 </a>
             </div>
         </div>
     </header>
 
     <!-- Main Container -->
-    <main class="flex-1 max-w-6xl w-full mx-auto px-4 py-8 flex flex-col items-center justify-center">
+    <main class="flex-1 max-w-6xl w-full mx-auto px-3 sm:px-4 py-4 sm:py-8 flex flex-col items-center justify-center">
 
         <!-- IP & ISP Info Bar -->
-        <div class="w-full max-w-4xl mb-8 p-4 rounded-2xl bg-white dark:bg-cardbg/70 border border-slate-200 dark:border-slate-800/80 shadow-sm dark:shadow-xl backdrop-blur-lg grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 transition-colors">
+        <div class="w-full max-w-4xl mb-6 sm:mb-8 p-3 sm:p-4 rounded-2xl bg-white dark:bg-cardbg/70 border border-slate-200 dark:border-slate-800/80 shadow-sm dark:shadow-xl backdrop-blur-lg grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 transition-colors">
             <!-- Client IP -->
-            <div class="flex items-center space-x-3 p-2">
-                <div class="p-2.5 rounded-xl bg-cyan-50 dark:bg-cyan-950/60 text-cyan-600 dark:text-cyan-400 border border-cyan-200 dark:border-cyan-800/40">
-                    <i data-lucide="network" class="w-5 h-5"></i>
+            <div class="flex items-center space-x-2.5 sm:space-x-3 p-1.5 sm:p-2">
+                <div class="p-2 sm:p-2.5 rounded-xl bg-cyan-50 dark:bg-cyan-950/60 text-cyan-600 dark:text-cyan-400 border border-cyan-200 dark:border-cyan-800/40 flex-shrink-0">
+                    <i data-lucide="network" class="w-4 h-4 sm:w-5 sm:h-5"></i>
                 </div>
                 <div class="min-w-0">
-                    <div class="text-xs text-slate-500 dark:text-slate-400 font-medium">Your IP Address</div>
-                    <div id="ip-display" class="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate cursor-pointer hover:text-cyan-600 dark:hover:text-cyan-400 transition" title="Click to copy">
+                    <div class="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 font-medium truncate">Your IP</div>
+                    <div id="ip-display" class="text-xs sm:text-sm font-semibold text-slate-900 dark:text-slate-100 truncate cursor-pointer hover:text-cyan-600 dark:hover:text-cyan-400 transition" title="Click to copy">
                         Detecting...
                     </div>
                 </div>
             </div>
 
             <!-- ISP Provider -->
-            <div class="flex items-center space-x-3 p-2">
-                <div class="p-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800/40">
-                    <i data-lucide="server" class="w-5 h-5"></i>
+            <div class="flex items-center space-x-2.5 sm:space-x-3 p-1.5 sm:p-2">
+                <div class="p-2 sm:p-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800/40 flex-shrink-0">
+                    <i data-lucide="server" class="w-4 h-4 sm:w-5 sm:h-5"></i>
                 </div>
                 <div class="min-w-0">
-                    <div class="text-xs text-slate-500 dark:text-slate-400 font-medium">Provider / ISP</div>
-                    <div id="isp-display" class="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">
+                    <div class="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 font-medium truncate">Provider / ISP</div>
+                    <div id="isp-display" class="text-xs sm:text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">
                         Detecting...
                     </div>
                 </div>
             </div>
 
             <!-- Location -->
-            <div class="flex items-center space-x-3 p-2">
-                <div class="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/40">
-                    <i data-lucide="map-pin" class="w-5 h-5"></i>
+            <div class="flex items-center space-x-2.5 sm:space-x-3 p-1.5 sm:p-2">
+                <div class="p-2 sm:p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/40 flex-shrink-0">
+                    <i data-lucide="map-pin" class="w-4 h-4 sm:w-5 sm:h-5"></i>
                 </div>
                 <div class="min-w-0">
-                    <div class="text-xs text-slate-500 dark:text-slate-400 font-medium">Location</div>
-                    <div id="location-display" class="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">
+                    <div class="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 font-medium truncate">Location</div>
+                    <div id="location-display" class="text-xs sm:text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">
                         Detecting...
                     </div>
                 </div>
             </div>
 
             <!-- Connection Status -->
-            <div class="flex items-center space-x-3 p-2">
-                <div class="p-2.5 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-800/40">
-                    <i data-lucide="shield-check" class="w-5 h-5"></i>
+            <div class="flex items-center space-x-2.5 sm:space-x-3 p-1.5 sm:p-2">
+                <div class="p-2 sm:p-2.5 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-800/40 flex-shrink-0">
+                    <i data-lucide="shield-check" class="w-4 h-4 sm:w-5 sm:h-5"></i>
                 </div>
                 <div class="min-w-0">
-                    <div class="text-xs text-slate-500 dark:text-slate-400 font-medium">Status</div>
-                    <div id="status-badge" class="text-sm font-semibold text-emerald-600 dark:text-emerald-400 flex items-center space-x-1.5">
+                    <div class="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 font-medium truncate">Status</div>
+                    <div id="status-badge" class="text-xs sm:text-sm font-semibold text-emerald-600 dark:text-emerald-400 flex items-center space-x-1">
                         <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                         <span>Ready</span>
                     </div>
@@ -130,15 +140,15 @@
         </div>
 
         <!-- 4 Metrics HUD Cards -->
-        <div class="w-full max-w-4xl grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div class="w-full max-w-4xl grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-4 mb-6 sm:mb-8">
             <!-- Ping -->
-            <div class="p-4 rounded-2xl bg-white dark:bg-cardbg/80 border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden group hover:border-cyan-500/50 transition">
-                <div class="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
+            <div class="p-3 sm:p-4 rounded-2xl bg-white dark:bg-cardbg/80 border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden group hover:border-cyan-500/50 transition">
+                <div class="flex items-center justify-between text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mb-1">
                     <span class="font-medium flex items-center gap-1"><i data-lucide="radio" class="w-3.5 h-3.5 text-cyan-500"></i> PING</span>
                     <span class="text-[10px] text-slate-400 dark:text-slate-500">RTT</span>
                 </div>
                 <div class="flex items-baseline space-x-1">
-                    <span id="metric-ping" class="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">--</span>
+                    <span id="metric-ping" class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">--</span>
                     <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">ms</span>
                 </div>
                 <div class="mt-2 h-1 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
@@ -147,13 +157,13 @@
             </div>
 
             <!-- Jitter -->
-            <div class="p-4 rounded-2xl bg-white dark:bg-cardbg/80 border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden group hover:border-indigo-500/50 transition">
-                <div class="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
+            <div class="p-3 sm:p-4 rounded-2xl bg-white dark:bg-cardbg/80 border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden group hover:border-indigo-500/50 transition">
+                <div class="flex items-center justify-between text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mb-1">
                     <span class="font-medium flex items-center gap-1"><i data-lucide="gauge" class="w-3.5 h-3.5 text-indigo-500"></i> JITTER</span>
                     <span class="text-[10px] text-slate-400 dark:text-slate-500">STABILITY</span>
                 </div>
                 <div class="flex items-baseline space-x-1">
-                    <span id="metric-jitter" class="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">--</span>
+                    <span id="metric-jitter" class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">--</span>
                     <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">ms</span>
                 </div>
                 <div class="mt-2 h-1 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
@@ -162,13 +172,13 @@
             </div>
 
             <!-- Download -->
-            <div class="p-4 rounded-2xl bg-white dark:bg-cardbg/80 border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden group hover:border-emerald-500/50 transition">
-                <div class="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
+            <div class="p-3 sm:p-4 rounded-2xl bg-white dark:bg-cardbg/80 border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden group hover:border-emerald-500/50 transition">
+                <div class="flex items-center justify-between text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mb-1">
                     <span class="font-medium flex items-center gap-1"><i data-lucide="arrow-down-circle" class="w-3.5 h-3.5 text-emerald-500"></i> DOWNLOAD</span>
                     <span class="text-[10px] text-slate-400 dark:text-slate-500">RX</span>
                 </div>
                 <div class="flex items-baseline space-x-1">
-                    <span id="metric-download" class="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">--</span>
+                    <span id="metric-download" class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">--</span>
                     <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">Mbps</span>
                 </div>
                 <div class="mt-2 h-1 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
@@ -177,13 +187,13 @@
             </div>
 
             <!-- Upload -->
-            <div class="p-4 rounded-2xl bg-white dark:bg-cardbg/80 border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden group hover:border-purple-500/50 transition">
-                <div class="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
+            <div class="p-3 sm:p-4 rounded-2xl bg-white dark:bg-cardbg/80 border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden group hover:border-purple-500/50 transition">
+                <div class="flex items-center justify-between text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mb-1">
                     <span class="font-medium flex items-center gap-1"><i data-lucide="arrow-up-circle" class="w-3.5 h-3.5 text-purple-500"></i> UPLOAD</span>
                     <span class="text-[10px] text-slate-400 dark:text-slate-500">TX</span>
                 </div>
                 <div class="flex items-baseline space-x-1">
-                    <span id="metric-upload" class="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">--</span>
+                    <span id="metric-upload" class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">--</span>
                     <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">Mbps</span>
                 </div>
                 <div class="mt-2 h-1 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
@@ -193,58 +203,64 @@
         </div>
 
         <!-- Central Gauge & Test Control -->
-        <div class="w-full max-w-4xl p-8 rounded-3xl bg-white dark:bg-cardbg/90 border border-slate-200 dark:border-slate-800 shadow-md dark:shadow-2xl relative flex flex-col items-center justify-center transition-colors">
+        <div class="w-full max-w-4xl p-5 sm:p-8 rounded-3xl bg-white dark:bg-cardbg/90 border border-slate-200 dark:border-slate-800 shadow-md dark:shadow-2xl relative flex flex-col items-center justify-center transition-colors">
             
             <!-- Phase Indicator -->
-            <div id="phase-badge" class="mb-4 px-4 py-1.5 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 text-xs font-medium text-slate-600 dark:text-slate-300 flex items-center space-x-2">
-                <span class="w-2 h-2 rounded-full bg-cyan-500"></span>
+            <div id="phase-badge" class="mb-3 sm:mb-4 px-3 sm:px-4 py-1.5 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 text-[11px] sm:text-xs font-medium text-slate-600 dark:text-slate-300 flex items-center space-x-2 text-center">
+                <span class="w-2 h-2 rounded-full bg-cyan-500 flex-shrink-0"></span>
                 <span id="phase-text">Click Start to begin network diagnostic</span>
             </div>
 
             <!-- Speedometer / Gauge Canvas -->
-            <div class="relative w-72 h-72 sm:w-80 sm:h-80 flex items-center justify-center my-2">
+            <div class="relative w-64 h-64 sm:w-80 sm:h-80 flex items-center justify-center my-1 sm:my-2">
                 <canvas id="gaugeCanvas" width="320" height="320" class="w-full h-full"></canvas>
 
                 <!-- Center Gauge Content -->
                 <div class="absolute inset-0 flex flex-col items-center justify-center text-center select-none pointer-events-none">
-                    <div id="gauge-label" class="text-xs uppercase font-bold tracking-widest text-slate-400 dark:text-slate-500 mb-1">READY</div>
-                    <div id="gauge-value" class="text-5xl sm:text-6xl font-black text-slate-900 dark:text-white tracking-tighter tabular-nums drop-shadow-sm">0.0</div>
-                    <div id="gauge-unit" class="text-sm font-semibold text-cyan-600 dark:text-cyan-400 mt-1">Mbps</div>
+                    <div id="gauge-label" class="text-[11px] sm:text-xs uppercase font-bold tracking-widest text-slate-400 dark:text-slate-500 mb-0.5 sm:mb-1">READY</div>
+                    <div id="gauge-value" class="text-4xl sm:text-6xl font-black text-slate-900 dark:text-white tracking-tighter tabular-nums drop-shadow-sm">0.0</div>
+                    <div id="gauge-unit" class="text-xs sm:text-sm font-semibold text-cyan-600 dark:text-cyan-400 mt-0.5 sm:mt-1">Mbps</div>
                 </div>
 
                 <!-- Start Button (visible when idle) -->
-                <button id="start-btn" class="absolute z-20 w-36 h-36 rounded-full bg-gradient-to-tr from-cyan-600 via-blue-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white font-extrabold text-xl tracking-wider uppercase shadow-2xl shadow-cyan-500/30 transition-all duration-300 hover:scale-105 active:scale-95 flex flex-col items-center justify-center border-4 border-white dark:border-slate-900">
+                <button id="start-btn" class="absolute z-20 w-28 h-28 sm:w-36 sm:h-36 rounded-full bg-gradient-to-tr from-cyan-600 via-blue-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white font-extrabold text-lg sm:text-xl tracking-wider uppercase shadow-2xl shadow-cyan-500/30 transition-all duration-300 hover:scale-105 active:scale-95 flex flex-col items-center justify-center border-4 border-white dark:border-slate-900">
                     <span>GO</span>
-                    <span class="text-[10px] font-normal tracking-normal text-cyan-100 mt-0.5">Start Test</span>
+                    <span class="text-[9px] sm:text-[10px] font-normal tracking-normal text-cyan-100 mt-0.5">Start Test</span>
                 </button>
             </div>
 
             <!-- Real-time Throughput Graph -->
-            <div class="w-full mt-6 pt-6 border-t border-slate-200 dark:border-slate-800/80">
+            <div class="w-full mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-slate-200 dark:border-slate-800/80">
                 <div class="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-2">
                     <span class="font-medium flex items-center gap-1.5"><i data-lucide="trending-up" class="w-3.5 h-3.5 text-cyan-500"></i> Real-time Throughput Graph</span>
-                    <div class="flex items-center space-x-4">
-                        <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> Download</span>
-                        <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-purple-500"></span> Upload</span>
+                    <div class="flex items-center space-x-3 sm:space-x-4">
+                        <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> Down</span>
+                        <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-purple-500"></span> Up</span>
                     </div>
                 </div>
-                <div class="h-44 w-full">
+                <div class="h-36 sm:h-44 w-full">
                     <canvas id="throughputChart"></canvas>
                 </div>
             </div>
 
-            <!-- Result Summary Card (hidden until complete) -->
-            <div id="result-modal" class="hidden w-full mt-6 p-6 rounded-2xl bg-slate-50 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-700/80 animate-fade-in transition-colors">
+            <!-- Result Summary Card with Share Button -->
+            <div id="result-modal" class="hidden w-full mt-5 sm:mt-6 p-4 sm:p-6 rounded-2xl bg-slate-50 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-700/80 animate-fade-in transition-colors">
                 <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div class="text-center sm:text-left">
-                        <div class="flex items-center justify-center sm:justify-start gap-2">
+                        <div class="flex flex-wrap items-center justify-center sm:justify-start gap-2">
                             <span class="px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800 text-xs font-semibold">Test Completed</span>
                             <span id="connection-rating" class="text-xs text-slate-700 dark:text-slate-300 font-medium">Quality: Excellent</span>
                         </div>
-                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Results successfully recorded to server logs.</p>
+                        <p id="result-meta-text" class="text-xs text-slate-500 dark:text-slate-400 mt-1">Results successfully recorded to server logs.</p>
                     </div>
-                    <div class="flex items-center gap-3">
-                        <button id="restart-btn" class="px-5 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-semibold transition flex items-center gap-1.5 shadow-lg shadow-cyan-600/20">
+                    <div class="flex items-center gap-2.5 sm:gap-3 w-full sm:w-auto justify-center">
+                        <!-- Share Result Button -->
+                        <button id="share-btn" class="flex-1 sm:flex-none px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 text-xs sm:text-sm font-semibold transition flex items-center justify-center gap-1.5 shadow-sm">
+                            <i data-lucide="share-2" class="w-4 h-4 text-cyan-500"></i>
+                            <span id="share-btn-text">Share Result</span>
+                        </button>
+                        <!-- Test Again Button -->
+                        <button id="restart-btn" class="flex-1 sm:flex-none px-5 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs sm:text-sm font-semibold transition flex items-center justify-center gap-1.5 shadow-lg shadow-cyan-600/20">
                             <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
                             <span>Test Again</span>
                         </button>
@@ -255,7 +271,7 @@
         </div>
 
         <!-- Bot / Rate Limit Alert Box -->
-        <div id="error-alert" class="hidden w-full max-w-4xl mt-6 p-4 rounded-xl bg-rose-50 dark:bg-rose-950/80 border border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-200 text-sm flex items-start space-x-3">
+        <div id="error-alert" class="hidden w-full max-w-4xl mt-4 sm:mt-6 p-4 rounded-xl bg-rose-50 dark:bg-rose-950/80 border border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-200 text-sm flex items-start space-x-3">
             <i data-lucide="alert-triangle" class="w-5 h-5 text-rose-500 flex-shrink-0 mt-0.5"></i>
             <div class="flex-1" id="error-message">An error occurred during speed test.</div>
         </div>

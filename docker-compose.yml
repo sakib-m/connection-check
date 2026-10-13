@@ -1,12 +1,12 @@
 services:
   app:
-    # Option A: Build from source locally (takes 1-2 minutes on first build)
-    build:
-      context: .
-      dockerfile: Dockerfile
+    # Pre-built image from Docker Hub (instant startup, no compilation needed):
+    image: sakib-m/connection-check:latest
 
-    # Option B: Or use your pre-built image from GitHub Container Registry (instant startup):
-    # image: ghcr.io/<your-github-username>/connection-check:latest
+    # Or uncomment to build from source code locally:
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile
 
     container_name: connection_check_app
     restart: unless-stopped
