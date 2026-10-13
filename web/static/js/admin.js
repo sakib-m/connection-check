@@ -27,6 +27,15 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    const themeToggleBtn = document.getElementById('theme-toggle-btn');
+    if (themeToggleBtn) {
+        themeToggleBtn.addEventListener('click', () => {
+            const isDark = document.documentElement.classList.toggle('dark');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            if (window.lucide) lucide.createIcons();
+        });
+    }
+
     const botsSearch = document.getElementById('bots-search');
     if (botsSearch) {
         botsSearch.addEventListener('input', () => {
@@ -40,8 +49,8 @@ document.addEventListener('DOMContentLoaded', () => {
 function switchTab(tabId) {
     document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
     document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.classList.remove('bg-slate-800', 'text-cyan-400');
-        btn.classList.add('text-slate-400');
+        btn.classList.remove('bg-slate-200', 'dark:bg-slate-800', 'text-cyan-700', 'dark:text-cyan-400');
+        btn.classList.add('text-slate-500', 'dark:text-slate-400');
     });
 
     const activeContent = document.getElementById('tab-' + tabId);
@@ -49,8 +58,8 @@ function switchTab(tabId) {
 
     if (activeContent) activeContent.classList.remove('hidden');
     if (activeBtn) {
-        activeBtn.classList.remove('text-slate-400');
-        activeBtn.classList.add('bg-slate-800', 'text-cyan-400');
+        activeBtn.classList.remove('text-slate-500', 'dark:text-slate-400');
+        activeBtn.classList.add('bg-slate-200', 'dark:bg-slate-800', 'text-cyan-700', 'dark:text-cyan-400');
     }
 }
 

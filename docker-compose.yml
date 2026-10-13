@@ -1,8 +1,13 @@
 services:
   app:
+    # Option A: Build from source locally (takes 1-2 minutes on first build)
     build:
       context: .
       dockerfile: Dockerfile
+
+    # Option B: Or use your pre-built image from GitHub Container Registry (instant startup):
+    # image: ghcr.io/<your-github-username>/connection-check:latest
+
     container_name: connection_check_app
     restart: unless-stopped
     ports:

@@ -39,8 +39,22 @@ Designed to run as a lightweight container on **port 3000** behind your preferre
 ## 🚀 Quick Start with Docker Compose
 
 ### 1. Launch with Docker Compose
+
+**Option 1: Build locally from source**
 ```bash
 docker compose up -d --build
+```
+
+**Option 2: Use pre-built Docker image from GitHub Container Registry (Instant start, no compiling)**
+Edit `docker-compose.yml` to use your published image:
+```yaml
+services:
+  app:
+    image: ghcr.io/<your-github-username>/connection-check:latest
+```
+Then start instantly:
+```bash
+docker compose up -d
 ```
 
 The application runs directly on **port 3000**:

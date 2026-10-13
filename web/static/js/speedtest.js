@@ -1,5 +1,6 @@
 /**
  * SpeedTest Pro - Client-side network diagnostic engine
+ * Features: Silky-smooth sliding window throughput, EMA filtering, 60fps gauge lerp, Light/Dark mode
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -14,6 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const resultModal = document.getElementById('result-modal');
     const errorAlert = document.getElementById('error-alert');
     const errorMessage = document.getElementById('error-message');
+    const themeToggleBtn = document.getElementById('theme-toggle-btn');
 
     const metricPing = document.getElementById('metric-ping');
     const metricJitter = document.getElementById('metric-jitter');
@@ -43,6 +45,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let targetGaugeSpeed = 0;
     let gaugeAnimationId = null;
 
+    // Smoothing Variables (Exponential Moving Average & Sliding Windows)
+    let smoothedDownloadSpeed = 0;
+    let smoothedUploadSpeed = 0;
+
     // Results Store
     let finalPing = 0;
     let finalJitter = 0;
@@ -50,16 +56,33 @@ document.addEventListener('DOMContentLoaded', () => {
     let finalUpload = 0;
 
     // -------------------------------------------------------------
+    // 0. Light / Dark Mode Toggle
+    // -------------------------------------------------------------
+    function isDarkMode() {
+        return document.documentElement.classList.contains('dark');
+    }
+
+    if (themeToggleBtn) {
+        themeToggleBtn.addEventListener('click', () => {
+            const isDark = document.documentElement.classList.toggle('dark');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            updateChartTheme();
+            drawGauge(currentGaugeSpeed);
+            if (window.lucide) lucide.createIcons();
+        });
+    }
+
+    // -------------------------------------------------------------
     // 1. Throughput Chart Setup (Chart.js)
     // -------------------------------------------------------------
     function initChart() {
         const ctx = document.getElementById('throughputChart').getContext('2d');
         const downGradient = ctx.createLinearGradient(0, 0, 0, 160);
-        downGradient.addColorStop(0, 'rgba(16, 185, 129, 0.4)');
+        downGradient.addColorStop(0, 'rgba(16, 185, 129, 0.35)');
         downGradient.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
 
         const upGradient = ctx.createLinearGradient(0, 0, 0, 160);
-        upGradient.addColorStop(0, 'rgba(168, 85, 247, 0.4)');
+        upGradient.addColorStop(0, 'rgba(168, 85, 247, 0.35)');
         upGradient.addColorStop(1, 'rgba(168, 85, 247, 0.0)');
 
         throughputChart = new Chart(ctx, {
@@ -73,8 +96,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         borderColor: '#10b981',
                         backgroundColor: downGradient,
                         fill: true,
-                        tension: 0.35,
-                        borderWidth: 2,
+                        tension: 0.4, // Silky bezier curve
+                        borderWidth: 2.5,
                         pointRadius: 0,
                     },
                     {
@@ -83,8 +106,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         borderColor: '#a855f7',
                         backgroundColor: upGradient,
                         fill: true,
-                        tension: 0.35,
-                        borderWidth: 2,
+                        tension: 0.4,
+                        borderWidth: 2.5,
                         pointRadius: 0,
                     }
                 ]
@@ -104,16 +127,26 @@ document.addEventListener('DOMContentLoaded', () => {
                     },
                     y: {
                         beginAtZero: true,
-                        grid: { color: 'rgba(51, 65, 85, 0.3)' },
-                        ticks: { color: '#64748b', font: { size: 10 } }
+                        grid: { color: isDarkMode() ? 'rgba(51, 65, 85, 0.25)' : 'rgba(203, 213, 225, 0.4)' },
+                        ticks: {
+                            color: isDarkMode() ? '#64748b' : '#94a3b8',
+                            font: { size: 10 }
+                        }
                     }
                 }
             }
         });
     }
 
+    function updateChartTheme() {
+        if (!throughputChart) return;
+        throughputChart.options.scales.y.grid.color = isDarkMode() ? 'rgba(51, 65, 85, 0.25)' : 'rgba(203, 213, 225, 0.4)';
+        throughputChart.options.scales.y.ticks.color = isDarkMode() ? '#64748b' : '#94a3b8';
+        throughputChart.update('none');
+    }
+
     // -------------------------------------------------------------
-    // 2. Speedometer Gauge Rendering
+    // 2. Speedometer Gauge Rendering & 60fps Smooth Lerp
     // -------------------------------------------------------------
     function drawGauge(speed, maxSpeed = 1000) {
         if (!gaugeCtx) return;
@@ -122,6 +155,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const cx = width / 2;
         const cy = height / 2;
         const radius = width * 0.42;
+        const dark = isDarkMode();
 
         gaugeCtx.clearRect(0, 0, width, height);
 
@@ -132,11 +166,11 @@ document.addEventListener('DOMContentLoaded', () => {
         gaugeCtx.beginPath();
         gaugeCtx.arc(cx, cy, radius, startAngle, endAngle);
         gaugeCtx.lineWidth = 14;
-        gaugeCtx.strokeStyle = 'rgba(30, 41, 59, 0.8)';
+        gaugeCtx.strokeStyle = dark ? 'rgba(30, 41, 59, 0.85)' : 'rgba(226, 232, 240, 0.9)';
         gaugeCtx.lineCap = 'round';
         gaugeCtx.stroke();
 
-        // Speed calculation (logarithmic mapping for fiber accuracy)
+        // Speed calculation with non-linear scale for fiber & broadband accuracy
         const normalized = Math.min(Math.max(speed, 0), maxSpeed);
         const percent = Math.min(Math.sqrt(normalized) / Math.sqrt(maxSpeed), 1);
         const currentAngle = startAngle + (endAngle - startAngle) * percent;
@@ -154,8 +188,8 @@ document.addEventListener('DOMContentLoaded', () => {
             gaugeCtx.lineWidth = 14;
             gaugeCtx.strokeStyle = grad;
             gaugeCtx.lineCap = 'round';
-            gaugeCtx.shadowColor = '#06b6d4';
-            gaugeCtx.shadowBlur = 12;
+            gaugeCtx.shadowColor = dark ? '#06b6d4' : 'rgba(6, 182, 212, 0.4)';
+            gaugeCtx.shadowBlur = dark ? 12 : 6;
             gaugeCtx.stroke();
             gaugeCtx.restore();
         }
@@ -174,18 +208,20 @@ document.addEventListener('DOMContentLoaded', () => {
             gaugeCtx.moveTo(x1, y1);
             gaugeCtx.lineTo(x2, y2);
             gaugeCtx.lineWidth = 2;
-            gaugeCtx.strokeStyle = 'rgba(71, 85, 105, 0.6)';
+            gaugeCtx.strokeStyle = dark ? 'rgba(71, 85, 105, 0.6)' : 'rgba(148, 163, 184, 0.7)';
             gaugeCtx.stroke();
         }
     }
 
+    // 60FPS Fluid Lerp Damping
     function animateGauge() {
         const diff = targetGaugeSpeed - currentGaugeSpeed;
-        if (Math.abs(diff) > 0.1) {
-            currentGaugeSpeed += diff * 0.15;
+        if (Math.abs(diff) > 0.05) {
+            currentGaugeSpeed += diff * 0.08; // Gentle fluid spring
         } else {
             currentGaugeSpeed = targetGaugeSpeed;
         }
+
         drawGauge(currentGaugeSpeed);
         gaugeValue.textContent = currentGaugeSpeed.toFixed(1);
         gaugeAnimationId = requestAnimationFrame(animateGauge);
@@ -262,7 +298,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 barPing.style.width = Math.min((latency / 200) * 100, 100) + '%';
                 targetGaugeSpeed = latency;
 
-                // Brief pause between pings
                 await new Promise(r => setTimeout(r, 60));
             } catch (err) {
                 console.error(err);
@@ -273,12 +308,10 @@ document.addEventListener('DOMContentLoaded', () => {
             throw new Error('Unable to communicate with latency server.');
         }
 
-        // Calculate Average Ping
         const sum = latencies.reduce((a, b) => a + b, 0);
         finalPing = sum / latencies.length;
         metricPing.textContent = finalPing.toFixed(1);
 
-        // Calculate RFC Jitter: Average difference between consecutive pings
         let jitterSum = 0;
         for (let i = 1; i < latencies.length; i++) {
             jitterSum += Math.abs(latencies[i] - latencies[i - 1]);
@@ -287,21 +320,22 @@ document.addEventListener('DOMContentLoaded', () => {
         metricJitter.textContent = finalJitter.toFixed(1);
         barJitter.style.width = Math.min((finalJitter / 50) * 100, 100) + '%';
 
-        await new Promise(r => setTimeout(r, 400));
+        await new Promise(r => setTimeout(r, 350));
     }
 
     // -------------------------------------------------------------
-    // 5. Download Throughput Diagnostic
+    // 5. Download Throughput Diagnostic (Sliding Window & EMA)
     // -------------------------------------------------------------
     async function measureDownload() {
         phaseText.textContent = 'Testing download throughput (multi-stream)...';
         gaugeLabel.textContent = 'DOWNLOAD';
         gaugeUnit.textContent = 'Mbps';
+        smoothedDownloadSpeed = 0;
 
-        const testDurationMs = 8000; // 8 seconds test
+        const testDurationMs = 8000;
         const startTime = performance.now();
         let totalBytes = 0;
-        const streams = 4; // Parallel HTTP streams
+        const streams = 4;
         let activeStreams = true;
 
         const downloadController = new AbortController();
@@ -310,11 +344,10 @@ document.addEventListener('DOMContentLoaded', () => {
             downloadController.abort();
         }, testDurationMs);
 
-        let lastSampleTime = startTime;
-        let lastSampleBytes = 0;
-        const samples = [];
+        // Sliding 1.2-second window buffer: [{ time, bytes }]
+        const sampleWindow = [];
+        const windowSizeMs = 1200;
 
-        // Worker to read a stream
         const readStream = async () => {
             while (activeStreams) {
                 try {
@@ -328,7 +361,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     while (activeStreams) {
                         const { done, value } = await reader.read();
                         if (done) break;
-                        totalBytes += value.byteLength;
+                        const len = value.byteLength;
+                        totalBytes += len;
+                        sampleWindow.push({ time: performance.now(), bytes: len });
                     }
                 } catch (e) {
                     break;
@@ -336,33 +371,47 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
 
-        // UI progress update ticker
+        // Smooth ticker updating every 150ms
         const updateInterval = setInterval(() => {
             const now = performance.now();
-            const elapsedSinceSample = (now - lastSampleTime) / 1000;
-            if (elapsedSinceSample >= 0.15) {
-                const bytesInWindow = totalBytes - lastSampleBytes;
-                const instantMbps = (bytesInWindow * 8) / (elapsedSinceSample * 1000000);
+            const elapsed = now - startTime;
 
-                samples.push(instantMbps);
-                targetGaugeSpeed = instantMbps;
-                metricDownload.textContent = instantMbps.toFixed(1);
-                barDownload.style.width = Math.min((instantMbps / 500) * 100, 100) + '%';
+            // Discard samples older than windowSizeMs
+            const cutoff = now - windowSizeMs;
+            while (sampleWindow.length > 0 && sampleWindow[0].time < cutoff) {
+                sampleWindow.shift();
+            }
 
-                // Chart update
+            // Calculate bytes inside sliding window
+            let bytesInWindow = 0;
+            for (let i = 0; i < sampleWindow.length; i++) {
+                bytesInWindow += sampleWindow[i].bytes;
+            }
+
+            const activeWindowTimeSec = Math.min(elapsed, windowSizeMs) / 1000;
+            if (activeWindowTimeSec > 0.2) {
+                const instantMbps = (bytesInWindow * 8) / (activeWindowTimeSec * 1000000);
+
+                // EMA smoothing (alpha = 0.28) eliminates TCP buffer jitter
+                if (smoothedDownloadSpeed <= 0) {
+                    smoothedDownloadSpeed = instantMbps;
+                } else {
+                    smoothedDownloadSpeed = (0.28 * instantMbps) + (0.72 * smoothedDownloadSpeed);
+                }
+
+                targetGaugeSpeed = smoothedDownloadSpeed;
+                metricDownload.textContent = smoothedDownloadSpeed.toFixed(1);
+                barDownload.style.width = Math.min((smoothedDownloadSpeed / 500) * 100, 100) + '%';
+
                 if (throughputChart) {
                     throughputChart.data.labels.push('');
-                    throughputChart.data.datasets[0].data.push(instantMbps);
+                    throughputChart.data.datasets[0].data.push(parseFloat(smoothedDownloadSpeed.toFixed(2)));
                     throughputChart.data.datasets[1].data.push(null);
                     throughputChart.update('none');
                 }
-
-                lastSampleTime = now;
-                lastSampleBytes = totalBytes;
             }
         }, 150);
 
-        // Launch parallel streams
         const streamPromises = [];
         for (let i = 0; i < streams; i++) {
             streamPromises.push(readStream());
@@ -377,24 +426,25 @@ document.addEventListener('DOMContentLoaded', () => {
         metricDownload.textContent = finalDownload.toFixed(1);
         targetGaugeSpeed = finalDownload;
 
-        await new Promise(r => setTimeout(r, 600));
+        await new Promise(r => setTimeout(r, 500));
     }
 
     // -------------------------------------------------------------
-    // 6. Upload Throughput Diagnostic
+    // 6. Upload Throughput Diagnostic (Progressive Chunks & EMA)
     // -------------------------------------------------------------
     async function measureUpload() {
         phaseText.textContent = 'Testing upload throughput...';
         gaugeLabel.textContent = 'UPLOAD';
         gaugeUnit.textContent = 'Mbps';
+        smoothedUploadSpeed = 0;
 
         const testDurationMs = 8000;
         const startTime = performance.now();
         let totalUploadedBytes = 0;
         let activeUpload = true;
 
-        // Generate 2MB payload chunk once
-        const chunkSizeBytes = 2 * 1024 * 1024;
+        // Progressive 512KB payload chunks for smooth incremental transfers
+        const chunkSizeBytes = 512 * 1024;
         const chunkData = new Uint8Array(chunkSizeBytes);
         for (let i = 0; i < chunkSizeBytes; i += 1024) {
             chunkData[i] = Math.floor(Math.random() * 255);
@@ -406,36 +456,51 @@ document.addEventListener('DOMContentLoaded', () => {
             uploadController.abort();
         }, testDurationMs);
 
-        let lastSampleTime = startTime;
-        let lastSampleBytes = 0;
+        const uploadSampleWindow = [];
+        const windowSizeMs = 1200;
 
         const updateInterval = setInterval(() => {
             const now = performance.now();
-            const elapsed = (now - lastSampleTime) / 1000;
-            if (elapsed >= 0.2) {
-                const bytesInWindow = totalUploadedBytes - lastSampleBytes;
-                const instantMbps = (bytesInWindow * 8) / (elapsed * 1000000);
+            const elapsed = now - startTime;
 
-                targetGaugeSpeed = instantMbps;
-                metricUpload.textContent = instantMbps.toFixed(1);
-                barUpload.style.width = Math.min((instantMbps / 300) * 100, 100) + '%';
+            const cutoff = now - windowSizeMs;
+            while (uploadSampleWindow.length > 0 && uploadSampleWindow[0].time < cutoff) {
+                uploadSampleWindow.shift();
+            }
+
+            let bytesInWindow = 0;
+            for (let i = 0; i < uploadSampleWindow.length; i++) {
+                bytesInWindow += uploadSampleWindow[i].bytes;
+            }
+
+            const activeWindowTimeSec = Math.min(elapsed, windowSizeMs) / 1000;
+            if (activeWindowTimeSec > 0.2) {
+                const instantMbps = (bytesInWindow * 8) / (activeWindowTimeSec * 1000000);
+
+                if (smoothedUploadSpeed <= 0) {
+                    smoothedUploadSpeed = instantMbps;
+                } else {
+                    smoothedUploadSpeed = (0.28 * instantMbps) + (0.72 * smoothedUploadSpeed);
+                }
+
+                targetGaugeSpeed = smoothedUploadSpeed;
+                metricUpload.textContent = smoothedUploadSpeed.toFixed(1);
+                barUpload.style.width = Math.min((smoothedUploadSpeed / 300) * 100, 100) + '%';
 
                 if (throughputChart) {
                     throughputChart.data.labels.push('');
                     throughputChart.data.datasets[0].data.push(null);
-                    throughputChart.data.datasets[1].data.push(instantMbps);
+                    throughputChart.data.datasets[1].data.push(parseFloat(smoothedUploadSpeed.toFixed(2)));
                     throughputChart.update('none');
                 }
-
-                lastSampleTime = now;
-                lastSampleBytes = totalUploadedBytes;
             }
-        }, 200);
+        }, 150);
 
-        // Upload worker
+        // Upload worker with 512KB chunks
         const uploadWorker = async () => {
             while (activeUpload) {
                 try {
+                    const startChunk = performance.now();
                     const res = await fetch('/api/speedtest/upload', {
                         method: 'POST',
                         body: chunkData,
@@ -444,6 +509,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
                     if (res.ok) {
                         totalUploadedBytes += chunkSizeBytes;
+                        uploadSampleWindow.push({ time: performance.now(), bytes: chunkSizeBytes });
                     }
                 } catch (e) {
                     break;
@@ -451,7 +517,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
 
-        const workers = [uploadWorker(), uploadWorker(), uploadWorker()];
+        const workers = [uploadWorker(), uploadWorker(), uploadWorker(), uploadWorker()];
         await Promise.allSettled(workers);
 
         clearTimeout(timeoutId);
@@ -462,7 +528,7 @@ document.addEventListener('DOMContentLoaded', () => {
         metricUpload.textContent = finalUpload.toFixed(1);
         targetGaugeSpeed = finalUpload;
 
-        await new Promise(r => setTimeout(r, 600));
+        await new Promise(r => setTimeout(r, 500));
     }
 
     // -------------------------------------------------------------
@@ -508,7 +574,6 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('Failed to log test results:', err);
         }
 
-        // Connection Quality Assessment
         let rating = 'Standard';
         if (finalDownload >= 200 && finalPing <= 15) {
             rating = 'Fiber Elite (Ideal for 8K streaming & competitive gaming)';
@@ -545,6 +610,8 @@ document.addEventListener('DOMContentLoaded', () => {
         barUpload.style.width = '0%';
         targetGaugeSpeed = 0;
         currentGaugeSpeed = 0;
+        smoothedDownloadSpeed = 0;
+        smoothedUploadSpeed = 0;
 
         if (throughputChart) {
             throughputChart.data.labels = [];
