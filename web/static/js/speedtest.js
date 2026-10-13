@@ -1,0 +1,593 @@
+/**
+ * SpeedTest Pro - Client-side network diagnostic engine
+ */
+
+document.addEventListener('DOMContentLoaded', () => {
+    // DOM Elements
+    const ipDisplay = document.getElementById('ip-display');
+    const ispDisplay = document.getElementById('isp-display');
+    const locationDisplay = document.getElementById('location-display');
+    const statusBadge = document.getElementById('status-badge');
+    const quotaRemaining = document.getElementById('quota-remaining');
+    const startBtn = document.getElementById('start-btn');
+    const restartBtn = document.getElementById('restart-btn');
+    const resultModal = document.getElementById('result-modal');
+    const errorAlert = document.getElementById('error-alert');
+    const errorMessage = document.getElementById('error-message');
+
+    const metricPing = document.getElementById('metric-ping');
+    const metricJitter = document.getElementById('metric-jitter');
+    const metricDownload = document.getElementById('metric-download');
+    const metricUpload = document.getElementById('metric-upload');
+
+    const barPing = document.getElementById('bar-ping');
+    const barJitter = document.getElementById('bar-jitter');
+    const barDownload = document.getElementById('bar-download');
+    const barUpload = document.getElementById('bar-upload');
+
+    const gaugeLabel = document.getElementById('gauge-label');
+    const gaugeValue = document.getElementById('gauge-value');
+    const gaugeUnit = document.getElementById('gauge-unit');
+    const phaseText = document.getElementById('phase-text');
+    const connectionRating = document.getElementById('connection-rating');
+
+    // Canvas & Chart references
+    const gaugeCanvas = document.getElementById('gaugeCanvas');
+    const gaugeCtx = gaugeCanvas ? gaugeCanvas.getContext('2d') : null;
+    let throughputChart = null;
+
+    // State Variables
+    let currentIPInfo = null;
+    let isTesting = false;
+    let currentGaugeSpeed = 0;
+    let targetGaugeSpeed = 0;
+    let gaugeAnimationId = null;
+
+    // Results Store
+    let finalPing = 0;
+    let finalJitter = 0;
+    let finalDownload = 0;
+    let finalUpload = 0;
+
+    // -------------------------------------------------------------
+    // 1. Throughput Chart Setup (Chart.js)
+    // -------------------------------------------------------------
+    function initChart() {
+        const ctx = document.getElementById('throughputChart').getContext('2d');
+        const downGradient = ctx.createLinearGradient(0, 0, 0, 160);
+        downGradient.addColorStop(0, 'rgba(16, 185, 129, 0.4)');
+        downGradient.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
+
+        const upGradient = ctx.createLinearGradient(0, 0, 0, 160);
+        upGradient.addColorStop(0, 'rgba(168, 85, 247, 0.4)');
+        upGradient.addColorStop(1, 'rgba(168, 85, 247, 0.0)');
+
+        throughputChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    {
+                        label: 'Download (Mbps)',
+                        data: [],
+                        borderColor: '#10b981',
+                        backgroundColor: downGradient,
+                        fill: true,
+                        tension: 0.35,
+                        borderWidth: 2,
+                        pointRadius: 0,
+                    },
+                    {
+                        label: 'Upload (Mbps)',
+                        data: [],
+                        borderColor: '#a855f7',
+                        backgroundColor: upGradient,
+                        fill: true,
+                        tension: 0.35,
+                        borderWidth: 2,
+                        pointRadius: 0,
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { enabled: true, mode: 'index', intersect: false }
+                },
+                scales: {
+                    x: {
+                        display: false,
+                        grid: { display: false }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: 'rgba(51, 65, 85, 0.3)' },
+                        ticks: { color: '#64748b', font: { size: 10 } }
+                    }
+                }
+            }
+        });
+    }
+
+    // -------------------------------------------------------------
+    // 2. Speedometer Gauge Rendering
+    // -------------------------------------------------------------
+    function drawGauge(speed, maxSpeed = 1000) {
+        if (!gaugeCtx) return;
+        const width = gaugeCanvas.width;
+        const height = gaugeCanvas.height;
+        const cx = width / 2;
+        const cy = height / 2;
+        const radius = width * 0.42;
+
+        gaugeCtx.clearRect(0, 0, width, height);
+
+        const startAngle = 0.75 * Math.PI; // 135 deg
+        const endAngle = 2.25 * Math.PI;   // 405 deg (270 deg sweep)
+
+        // Background Track
+        gaugeCtx.beginPath();
+        gaugeCtx.arc(cx, cy, radius, startAngle, endAngle);
+        gaugeCtx.lineWidth = 14;
+        gaugeCtx.strokeStyle = 'rgba(30, 41, 59, 0.8)';
+        gaugeCtx.lineCap = 'round';
+        gaugeCtx.stroke();
+
+        // Speed calculation (logarithmic mapping for fiber accuracy)
+        const normalized = Math.min(Math.max(speed, 0), maxSpeed);
+        const percent = Math.min(Math.sqrt(normalized) / Math.sqrt(maxSpeed), 1);
+        const currentAngle = startAngle + (endAngle - startAngle) * percent;
+
+        // Active Glowing Arc
+        if (percent > 0.005) {
+            gaugeCtx.save();
+            const grad = gaugeCtx.createLinearGradient(0, height, width, 0);
+            grad.addColorStop(0, '#06b6d4');
+            grad.addColorStop(0.5, '#3b82f6');
+            grad.addColorStop(1, '#10b981');
+
+            gaugeCtx.beginPath();
+            gaugeCtx.arc(cx, cy, radius, startAngle, currentAngle);
+            gaugeCtx.lineWidth = 14;
+            gaugeCtx.strokeStyle = grad;
+            gaugeCtx.lineCap = 'round';
+            gaugeCtx.shadowColor = '#06b6d4';
+            gaugeCtx.shadowBlur = 12;
+            gaugeCtx.stroke();
+            gaugeCtx.restore();
+        }
+
+        // Tick marks
+        for (let i = 0; i <= 10; i++) {
+            const angle = startAngle + (endAngle - startAngle) * (i / 10);
+            const innerR = radius - 16;
+            const outerR = radius - 10;
+            const x1 = cx + innerR * Math.cos(angle);
+            const y1 = cy + innerR * Math.sin(angle);
+            const x2 = cx + outerR * Math.cos(angle);
+            const y2 = cy + outerR * Math.sin(angle);
+
+            gaugeCtx.beginPath();
+            gaugeCtx.moveTo(x1, y1);
+            gaugeCtx.lineTo(x2, y2);
+            gaugeCtx.lineWidth = 2;
+            gaugeCtx.strokeStyle = 'rgba(71, 85, 105, 0.6)';
+            gaugeCtx.stroke();
+        }
+    }
+
+    function animateGauge() {
+        const diff = targetGaugeSpeed - currentGaugeSpeed;
+        if (Math.abs(diff) > 0.1) {
+            currentGaugeSpeed += diff * 0.15;
+        } else {
+            currentGaugeSpeed = targetGaugeSpeed;
+        }
+        drawGauge(currentGaugeSpeed);
+        gaugeValue.textContent = currentGaugeSpeed.toFixed(1);
+        gaugeAnimationId = requestAnimationFrame(animateGauge);
+    }
+
+    // -------------------------------------------------------------
+    // 3. Initial IP & Rate Quota Fetch
+    // -------------------------------------------------------------
+    async function fetchIPInfo() {
+        try {
+            const res = await fetch('/api/speedtest/ip');
+            if (res.status === 403) {
+                const data = await res.json();
+                showError('Bot Guard Alert: ' + (data.reason || 'Automated client blocked.'));
+                return;
+            }
+            if (!res.ok) throw new Error('Failed to resolve IP details');
+            const data = await res.json();
+            currentIPInfo = data;
+
+            ipDisplay.textContent = data.ip;
+            ispDisplay.textContent = data.isp || 'Broadband ISP';
+            
+            const loc = [data.city, data.country].filter(Boolean).join(', ');
+            locationDisplay.textContent = loc || 'Global Internet';
+
+            if (data.rate_limit) {
+                quotaRemaining.textContent = data.rate_limit.remaining;
+                if (!data.rate_limit.allowed) {
+                    showError(`Hourly rate limit exceeded. You can run maximum 10 tests per hour.`);
+                    startBtn.disabled = true;
+                    startBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                }
+            }
+        } catch (err) {
+            console.warn('IP lookup error:', err);
+            ipDisplay.textContent = '127.0.0.1';
+            ispDisplay.textContent = 'Local Connection';
+            locationDisplay.textContent = 'Connected';
+        }
+    }
+
+    // Click to copy IP
+    ipDisplay.addEventListener('click', () => {
+        if (ipDisplay.textContent && ipDisplay.textContent !== 'Detecting...') {
+            navigator.clipboard.writeText(ipDisplay.textContent);
+            const orig = ipDisplay.textContent;
+            ipDisplay.textContent = 'Copied to clipboard!';
+            setTimeout(() => { ipDisplay.textContent = orig; }, 1200);
+        }
+    });
+
+    // -------------------------------------------------------------
+    // 4. Ping and Jitter Diagnostic
+    // -------------------------------------------------------------
+    async function measurePingAndJitter() {
+        phaseText.textContent = 'Testing latency and packet jitter...';
+        gaugeLabel.textContent = 'PING';
+        gaugeUnit.textContent = 'ms';
+
+        const latencies = [];
+        const iterations = 10;
+
+        for (let i = 0; i < iterations; i++) {
+            const start = performance.now();
+            try {
+                const res = await fetch('/api/speedtest/ping?t=' + Date.now(), { cache: 'no-store' });
+                if (!res.ok) throw new Error('Ping failed');
+                await res.json();
+                const latency = performance.now() - start;
+                latencies.push(latency);
+
+                metricPing.textContent = latency.toFixed(1);
+                barPing.style.width = Math.min((latency / 200) * 100, 100) + '%';
+                targetGaugeSpeed = latency;
+
+                // Brief pause between pings
+                await new Promise(r => setTimeout(r, 60));
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        if (latencies.length === 0) {
+            throw new Error('Unable to communicate with latency server.');
+        }
+
+        // Calculate Average Ping
+        const sum = latencies.reduce((a, b) => a + b, 0);
+        finalPing = sum / latencies.length;
+        metricPing.textContent = finalPing.toFixed(1);
+
+        // Calculate RFC Jitter: Average difference between consecutive pings
+        let jitterSum = 0;
+        for (let i = 1; i < latencies.length; i++) {
+            jitterSum += Math.abs(latencies[i] - latencies[i - 1]);
+        }
+        finalJitter = latencies.length > 1 ? (jitterSum / (latencies.length - 1)) : 0;
+        metricJitter.textContent = finalJitter.toFixed(1);
+        barJitter.style.width = Math.min((finalJitter / 50) * 100, 100) + '%';
+
+        await new Promise(r => setTimeout(r, 400));
+    }
+
+    // -------------------------------------------------------------
+    // 5. Download Throughput Diagnostic
+    // -------------------------------------------------------------
+    async function measureDownload() {
+        phaseText.textContent = 'Testing download throughput (multi-stream)...';
+        gaugeLabel.textContent = 'DOWNLOAD';
+        gaugeUnit.textContent = 'Mbps';
+
+        const testDurationMs = 8000; // 8 seconds test
+        const startTime = performance.now();
+        let totalBytes = 0;
+        const streams = 4; // Parallel HTTP streams
+        let activeStreams = true;
+
+        const downloadController = new AbortController();
+        const timeoutId = setTimeout(() => {
+            activeStreams = false;
+            downloadController.abort();
+        }, testDurationMs);
+
+        let lastSampleTime = startTime;
+        let lastSampleBytes = 0;
+        const samples = [];
+
+        // Worker to read a stream
+        const readStream = async () => {
+            while (activeStreams) {
+                try {
+                    const res = await fetch('/api/speedtest/download?size=30000000&r=' + Math.random(), {
+                        signal: downloadController.signal,
+                        cache: 'no-store'
+                    });
+                    if (!res.ok) return;
+
+                    const reader = res.body.getReader();
+                    while (activeStreams) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        totalBytes += value.byteLength;
+                    }
+                } catch (e) {
+                    break;
+                }
+            }
+        };
+
+        // UI progress update ticker
+        const updateInterval = setInterval(() => {
+            const now = performance.now();
+            const elapsedSinceSample = (now - lastSampleTime) / 1000;
+            if (elapsedSinceSample >= 0.15) {
+                const bytesInWindow = totalBytes - lastSampleBytes;
+                const instantMbps = (bytesInWindow * 8) / (elapsedSinceSample * 1000000);
+
+                samples.push(instantMbps);
+                targetGaugeSpeed = instantMbps;
+                metricDownload.textContent = instantMbps.toFixed(1);
+                barDownload.style.width = Math.min((instantMbps / 500) * 100, 100) + '%';
+
+                // Chart update
+                if (throughputChart) {
+                    throughputChart.data.labels.push('');
+                    throughputChart.data.datasets[0].data.push(instantMbps);
+                    throughputChart.data.datasets[1].data.push(null);
+                    throughputChart.update('none');
+                }
+
+                lastSampleTime = now;
+                lastSampleBytes = totalBytes;
+            }
+        }, 150);
+
+        // Launch parallel streams
+        const streamPromises = [];
+        for (let i = 0; i < streams; i++) {
+            streamPromises.push(readStream());
+        }
+
+        await Promise.allSettled(streamPromises);
+        clearTimeout(timeoutId);
+        clearInterval(updateInterval);
+
+        const totalElapsedSec = (performance.now() - startTime) / 1000;
+        finalDownload = (totalBytes * 8) / (totalElapsedSec * 1000000);
+        metricDownload.textContent = finalDownload.toFixed(1);
+        targetGaugeSpeed = finalDownload;
+
+        await new Promise(r => setTimeout(r, 600));
+    }
+
+    // -------------------------------------------------------------
+    // 6. Upload Throughput Diagnostic
+    // -------------------------------------------------------------
+    async function measureUpload() {
+        phaseText.textContent = 'Testing upload throughput...';
+        gaugeLabel.textContent = 'UPLOAD';
+        gaugeUnit.textContent = 'Mbps';
+
+        const testDurationMs = 8000;
+        const startTime = performance.now();
+        let totalUploadedBytes = 0;
+        let activeUpload = true;
+
+        // Generate 2MB payload chunk once
+        const chunkSizeBytes = 2 * 1024 * 1024;
+        const chunkData = new Uint8Array(chunkSizeBytes);
+        for (let i = 0; i < chunkSizeBytes; i += 1024) {
+            chunkData[i] = Math.floor(Math.random() * 255);
+        }
+
+        const uploadController = new AbortController();
+        const timeoutId = setTimeout(() => {
+            activeUpload = false;
+            uploadController.abort();
+        }, testDurationMs);
+
+        let lastSampleTime = startTime;
+        let lastSampleBytes = 0;
+
+        const updateInterval = setInterval(() => {
+            const now = performance.now();
+            const elapsed = (now - lastSampleTime) / 1000;
+            if (elapsed >= 0.2) {
+                const bytesInWindow = totalUploadedBytes - lastSampleBytes;
+                const instantMbps = (bytesInWindow * 8) / (elapsed * 1000000);
+
+                targetGaugeSpeed = instantMbps;
+                metricUpload.textContent = instantMbps.toFixed(1);
+                barUpload.style.width = Math.min((instantMbps / 300) * 100, 100) + '%';
+
+                if (throughputChart) {
+                    throughputChart.data.labels.push('');
+                    throughputChart.data.datasets[0].data.push(null);
+                    throughputChart.data.datasets[1].data.push(instantMbps);
+                    throughputChart.update('none');
+                }
+
+                lastSampleTime = now;
+                lastSampleBytes = totalUploadedBytes;
+            }
+        }, 200);
+
+        // Upload worker
+        const uploadWorker = async () => {
+            while (activeUpload) {
+                try {
+                    const res = await fetch('/api/speedtest/upload', {
+                        method: 'POST',
+                        body: chunkData,
+                        signal: uploadController.signal,
+                        headers: { 'Content-Type': 'application/octet-stream' }
+                    });
+                    if (res.ok) {
+                        totalUploadedBytes += chunkSizeBytes;
+                    }
+                } catch (e) {
+                    break;
+                }
+            }
+        };
+
+        const workers = [uploadWorker(), uploadWorker(), uploadWorker()];
+        await Promise.allSettled(workers);
+
+        clearTimeout(timeoutId);
+        clearInterval(updateInterval);
+
+        const totalElapsedSec = (performance.now() - startTime) / 1000;
+        finalUpload = (totalUploadedBytes * 8) / (totalElapsedSec * 1000000);
+        metricUpload.textContent = finalUpload.toFixed(1);
+        targetGaugeSpeed = finalUpload;
+
+        await new Promise(r => setTimeout(r, 600));
+    }
+
+    // -------------------------------------------------------------
+    // 7. Save Results & Complete Test
+    // -------------------------------------------------------------
+    async function saveResults() {
+        phaseText.textContent = 'Finalizing and recording test results...';
+
+        try {
+            const payload = {
+                download_mbps: parseFloat(finalDownload.toFixed(2)),
+                upload_mbps: parseFloat(finalUpload.toFixed(2)),
+                ping_ms: parseFloat(finalPing.toFixed(2)),
+                jitter_ms: parseFloat(finalJitter.toFixed(2)),
+                isp: currentIPInfo ? currentIPInfo.isp : 'Unknown',
+                city: currentIPInfo ? currentIPInfo.city : '',
+                country: currentIPInfo ? currentIPInfo.country : '',
+                country_code: currentIPInfo ? currentIPInfo.country_code : ''
+            };
+
+            const res = await fetch('/api/speedtest/results', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.status === 429) {
+                const data = await res.json();
+                showError(data.error || 'Rate limit reached: Maximum 10 tests/hour per IP.');
+                return;
+            }
+
+            if (res.status === 403) {
+                showError('Bot Guard Alert: Access denied for automated requests.');
+                return;
+            }
+
+            const data = await res.json();
+            if (data.remaining !== undefined) {
+                quotaRemaining.textContent = data.remaining;
+            }
+        } catch (err) {
+            console.error('Failed to log test results:', err);
+        }
+
+        // Connection Quality Assessment
+        let rating = 'Standard';
+        if (finalDownload >= 200 && finalPing <= 15) {
+            rating = 'Fiber Elite (Ideal for 8K streaming & competitive gaming)';
+        } else if (finalDownload >= 50 && finalPing <= 30) {
+            rating = 'Ultra Fast (Excellent for 4K streaming & video calls)';
+        } else if (finalDownload >= 20) {
+            rating = 'Good (HD streaming & everyday work)';
+        } else {
+            rating = 'Fair (Basic web browsing)';
+        }
+        connectionRating.textContent = 'Rating: ' + rating;
+
+        gaugeLabel.textContent = 'DONE';
+        phaseText.textContent = 'Diagnostic complete! View your results summary below.';
+        targetGaugeSpeed = finalDownload;
+        resultModal.classList.remove('hidden');
+    }
+
+    function showError(msg) {
+        errorMessage.textContent = msg;
+        errorAlert.classList.remove('hidden');
+    }
+
+    function resetUI() {
+        errorAlert.classList.add('hidden');
+        resultModal.classList.add('hidden');
+        metricPing.textContent = '--';
+        metricJitter.textContent = '--';
+        metricDownload.textContent = '--';
+        metricUpload.textContent = '--';
+        barPing.style.width = '0%';
+        barJitter.style.width = '0%';
+        barDownload.style.width = '0%';
+        barUpload.style.width = '0%';
+        targetGaugeSpeed = 0;
+        currentGaugeSpeed = 0;
+
+        if (throughputChart) {
+            throughputChart.data.labels = [];
+            throughputChart.data.datasets[0].data = [];
+            throughputChart.data.datasets[1].data = [];
+            throughputChart.update();
+        }
+    }
+
+    // -------------------------------------------------------------
+    // 8. Main Test Execution Orchestrator
+    // -------------------------------------------------------------
+    async function runSpeedTest() {
+        if (isTesting) return;
+        isTesting = true;
+        startBtn.classList.add('hidden');
+        resetUI();
+
+        try {
+            await measurePingAndJitter();
+            await measureDownload();
+            await measureUpload();
+            await saveResults();
+        } catch (err) {
+            console.error('Speedtest aborted with error:', err);
+            showError(err.message || 'Diagnostic failed. Please check your connection.');
+            phaseText.textContent = 'Test aborted due to error.';
+            startBtn.classList.remove('hidden');
+        } finally {
+            isTesting = false;
+        }
+    }
+
+    // Event Listeners
+    startBtn.addEventListener('click', runSpeedTest);
+    restartBtn.addEventListener('click', () => {
+        resultModal.classList.add('hidden');
+        startBtn.classList.remove('hidden');
+        runSpeedTest();
+    });
+
+    // Initialize Page
+    initChart();
+    animateGauge();
+    fetchIPInfo();
+});

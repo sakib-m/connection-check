@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login - Connection Check</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        darkbg: '#0B0F19',
+                        cardbg: '#111827',
+                    }
+                }
+            }
+        }
+    </script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="bg-darkbg text-slate-100 min-h-screen flex items-center justify-center p-4">
+
+    <div class="w-full max-w-md bg-cardbg/90 border border-slate-800 rounded-3xl p-8 shadow-2xl backdrop-blur-xl">
+        <!-- Logo -->
+        <div class="flex flex-col items-center mb-8">
+            <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20 mb-4">
+                <i data-lucide="shield" class="w-7 h-7 text-white"></i>
+            </div>
+            <h1 class="text-2xl font-bold tracking-tight">Admin Console</h1>
+            <p class="text-xs text-slate-400 mt-1">SpeedTest & Network Diagnostic Administration</p>
+        </div>
+
+        <!-- Alert messages -->
+        <div id="login-alert" class="hidden mb-6 p-3.5 rounded-xl text-xs font-medium border"></div>
+
+        <!-- Default Credentials Notice -->
+        <div class="mb-6 p-3.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-400 flex items-start space-x-2.5">
+            <i data-lucide="info" class="w-4 h-4 text-cyan-400 flex-shrink-0 mt-0.5"></i>
+            <div>
+                Default initial credentials: <strong class="text-slate-200">admin</strong> / <strong class="text-slate-200">admin123</strong>.
+                <div class="text-[11px] text-cyan-400/90 mt-0.5">You will be required to change your password immediately upon first login.</div>
+            </div>
+        </div>
+
+        <!-- Form -->
+        <form id="login-form" class="space-y-5">
+            <div>
+                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5" for="username">Username</label>
+                <div class="relative">
+                    <input type="text" id="username" name="username" value="admin" required
+                        class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-sm text-slate-100 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5" for="password">Password</label>
+                <div class="relative">
+                    <input type="password" id="password" name="password" required placeholder="••••••••••••"
+                        class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-sm text-slate-100 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition">
+                </div>
+            </div>
+
+            <button type="submit" id="submit-btn"
+                class="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-semibold text-sm shadow-lg shadow-cyan-600/25 transition active:scale-[0.98]">
+                Sign In to Console
+            </button>
+        </form>
+
+        <div class="mt-6 text-center">
+            <a href="/" class="text-xs text-slate-400 hover:text-cyan-400 transition flex items-center justify-center gap-1">
+                <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
+                <span>Back to Speedtest UI</span>
+            </a>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        const form = document.getElementById('login-form');
+        const alertBox = document.getElementById('login-alert');
+        const submitBtn = document.getElementById('submit-btn');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            alertBox.classList.add('hidden');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = 'Signing in...';
+
+            try {
+                const res = await fetch('/data/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: form.username.value,
+                        password: form.password.value
+                    })
+                });
+
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    window.location.href = data.redirect || '/data';
+                } else {
+                    alertBox.textContent = data.error || 'Invalid username or password.';
+                    alertBox.className = 'mb-6 p-3.5 rounded-xl text-xs font-medium border bg-rose-950/80 border-rose-800 text-rose-300';
+                    alertBox.classList.remove('hidden');
+                }
+            } catch (err) {
+                alertBox.textContent = 'Server connection error. Please try again.';
+                alertBox.className = 'mb-6 p-3.5 rounded-xl text-xs font-medium border bg-rose-950/80 border-rose-800 text-rose-300';
+                alertBox.classList.remove('hidden');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = 'Sign In to Console';
+            }
+        });
+    </script>
+</body>
+</html>

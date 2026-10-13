@@ -1,0 +1,44 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: connection_check_app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - DB_PATH=/app/data/speedtest.db
+      - TEMPLATES_DIR=/app/web/templates
+      - STATIC_DIR=/app/web/static
+      - CADDY_ADMIN_URL=http://caddy:2019
+    volumes:
+      - ./data:/app/data
+    networks:
+      - speedtest_net
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: connection_check_caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp" # HTTP/3 QUIC support
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+    networks:
+      - speedtest_net
+
+networks:
+  speedtest_net:
+    driver: bridge
+
+volumes:
+  caddy_data:
+  caddy_config:

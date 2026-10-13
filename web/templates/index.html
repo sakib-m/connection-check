@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SpeedTest & Network Quality Check</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f9ff',
+                            400: '#38bdf8',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                        },
+                        darkbg: '#0B0F19',
+                        cardbg: '#111827',
+                    },
+                    animation: {
+                        'pulse-glow': 'pulseGlow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    },
+                    keyframes: {
+                        pulseGlow: {
+                            '0%, 100%': { opacity: '0.4', transform: 'scale(1)' },
+                            '50%': { opacity: '0.8', transform: 'scale(1.05)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="bg-darkbg text-slate-100 min-h-screen flex flex-col font-sans selection:bg-cyan-500 selection:text-white">
+
+    <!-- Top Navigation -->
+    <header class="border-b border-slate-800/80 bg-slate-950/60 backdrop-blur-md sticky top-0 z-40">
+        <div class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+                    <i data-lucide="activity" class="w-6 h-6 text-white"></i>
+                </div>
+                <div>
+                    <span class="font-bold text-lg tracking-tight bg-gradient-to-r from-white via-slate-200 to-cyan-400 bg-clip-text text-transparent">SpeedTest Pro</span>
+                    <span class="text-xs ml-1 px-1.5 py-0.5 rounded bg-cyan-950 text-cyan-400 border border-cyan-800">Fiber Ready</span>
+                </div>
+            </div>
+            
+            <div class="flex items-center space-x-4">
+                <div id="rate-limit-badge" class="hidden md:flex items-center space-x-1.5 px-3 py-1 rounded-full bg-slate-900 border border-slate-800 text-xs text-slate-400">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    <span>Quota: <strong id="quota-remaining" class="text-slate-200">10</strong> / 10 left this hr</span>
+                </div>
+                <a href="/data" class="flex items-center space-x-1.5 text-xs text-slate-400 hover:text-cyan-400 px-3 py-1.5 rounded-lg border border-slate-800 hover:border-cyan-500/40 transition">
+                    <i data-lucide="shield" class="w-3.5 h-3.5"></i>
+                    <span>Admin Panel</span>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-1 max-w-6xl w-full mx-auto px-4 py-8 flex flex-col items-center justify-center">
+
+        <!-- IP & ISP Info Bar -->
+        <div class="w-full max-w-4xl mb-8 p-4 rounded-2xl bg-cardbg/70 border border-slate-800/80 backdrop-blur-lg shadow-xl grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+            <!-- Client IP -->
+            <div class="flex items-center space-x-3 p-2">
+                <div class="p-2.5 rounded-xl bg-cyan-950/60 text-cyan-400 border border-cyan-800/40">
+                    <i data-lucide="network" class="w-5 h-5"></i>
+                </div>
+                <div class="min-w-0">
+                    <div class="text-xs text-slate-400 font-medium">Your IP Address</div>
+                    <div id="ip-display" class="text-sm font-semibold text-slate-100 truncate cursor-pointer hover:text-cyan-400 transition" title="Click to copy">
+                        Detecting...
+                    </div>
+                </div>
+            </div>
+
+            <!-- ISP Provider -->
+            <div class="flex items-center space-x-3 p-2">
+                <div class="p-2.5 rounded-xl bg-indigo-950/60 text-indigo-400 border border-indigo-800/40">
+                    <i data-lucide="server" class="w-5 h-5"></i>
+                </div>
+                <div class="min-w-0">
+                    <div class="text-xs text-slate-400 font-medium">Provider / ISP</div>
+                    <div id="isp-display" class="text-sm font-semibold text-slate-100 truncate">
+                        Detecting...
+                    </div>
+                </div>
+            </div>
+
+            <!-- Location -->
+            <div class="flex items-center space-x-3 p-2">
+                <div class="p-2.5 rounded-xl bg-emerald-950/60 text-emerald-400 border border-emerald-800/40">
+                    <i data-lucide="map-pin" class="w-5 h-5"></i>
+                </div>
+                <div class="min-w-0">
+                    <div class="text-xs text-slate-400 font-medium">Location</div>
+                    <div id="location-display" class="text-sm font-semibold text-slate-100 truncate">
+                        Detecting...
+                    </div>
+                </div>
+            </div>
+
+            <!-- Protocol / Connection -->
+            <div class="flex items-center space-x-3 p-2">
+                <div class="p-2.5 rounded-xl bg-purple-950/60 text-purple-400 border border-purple-800/40">
+                    <i data-lucide="shield-check" class="w-5 h-5"></i>
+                </div>
+                <div class="min-w-0">
+                    <div class="text-xs text-slate-400 font-medium">Status</div>
+                    <div id="status-badge" class="text-sm font-semibold text-emerald-400 flex items-center space-x-1">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                        <span>Ready</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4 Metrics HUD Cards -->
+        <div class="w-full max-w-4xl grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            <!-- Ping -->
+            <div class="p-4 rounded-2xl bg-cardbg/80 border border-slate-800 relative overflow-hidden group hover:border-cyan-500/50 transition">
+                <div class="flex items-center justify-between text-xs text-slate-400 mb-1">
+                    <span class="font-medium flex items-center gap-1"><i data-lucide="radio" class="w-3.5 h-3.5 text-cyan-400"></i> PING</span>
+                    <span class="text-[10px] text-slate-500">RTT</span>
+                </div>
+                <div class="flex items-baseline space-x-1">
+                    <span id="metric-ping" class="text-3xl font-extrabold text-white tracking-tight">--</span>
+                    <span class="text-xs font-semibold text-slate-400">ms</span>
+                </div>
+                <div class="mt-1 h-1 w-full bg-slate-800 rounded-full overflow-hidden">
+                    <div id="bar-ping" class="h-full bg-cyan-400 w-0 transition-all duration-300"></div>
+                </div>
+            </div>
+
+            <!-- Jitter -->
+            <div class="p-4 rounded-2xl bg-cardbg/80 border border-slate-800 relative overflow-hidden group hover:border-indigo-500/50 transition">
+                <div class="flex items-center justify-between text-xs text-slate-400 mb-1">
+                    <span class="font-medium flex items-center gap-1"><i data-lucide="gauge" class="w-3.5 h-3.5 text-indigo-400"></i> JITTER</span>
+                    <span class="text-[10px] text-slate-500">VARIANCE</span>
+                </div>
+                <div class="flex items-baseline space-x-1">
+                    <span id="metric-jitter" class="text-3xl font-extrabold text-white tracking-tight">--</span>
+                    <span class="text-xs font-semibold text-slate-400">ms</span>
+                </div>
+                <div class="mt-1 h-1 w-full bg-slate-800 rounded-full overflow-hidden">
+                    <div id="bar-jitter" class="h-full bg-indigo-400 w-0 transition-all duration-300"></div>
+                </div>
+            </div>
+
+            <!-- Download -->
+            <div class="p-4 rounded-2xl bg-cardbg/80 border border-slate-800 relative overflow-hidden group hover:border-emerald-500/50 transition">
+                <div class="flex items-center justify-between text-xs text-slate-400 mb-1">
+                    <span class="font-medium flex items-center gap-1"><i data-lucide="arrow-down-circle" class="w-3.5 h-3.5 text-emerald-400"></i> DOWNLOAD</span>
+                    <span class="text-[10px] text-slate-500">RX</span>
+                </div>
+                <div class="flex items-baseline space-x-1">
+                    <span id="metric-download" class="text-3xl font-extrabold text-white tracking-tight">--</span>
+                    <span class="text-xs font-semibold text-slate-400">Mbps</span>
+                </div>
+                <div class="mt-1 h-1 w-full bg-slate-800 rounded-full overflow-hidden">
+                    <div id="bar-download" class="h-full bg-emerald-400 w-0 transition-all duration-300"></div>
+                </div>
+            </div>
+
+            <!-- Upload -->
+            <div class="p-4 rounded-2xl bg-cardbg/80 border border-slate-800 relative overflow-hidden group hover:border-purple-500/50 transition">
+                <div class="flex items-center justify-between text-xs text-slate-400 mb-1">
+                    <span class="font-medium flex items-center gap-1"><i data-lucide="arrow-up-circle" class="w-3.5 h-3.5 text-purple-400"></i> UPLOAD</span>
+                    <span class="text-[10px] text-slate-500">TX</span>
+                </div>
+                <div class="flex items-baseline space-x-1">
+                    <span id="metric-upload" class="text-3xl font-extrabold text-white tracking-tight">--</span>
+                    <span class="text-xs font-semibold text-slate-400">Mbps</span>
+                </div>
+                <div class="mt-1 h-1 w-full bg-slate-800 rounded-full overflow-hidden">
+                    <div id="bar-upload" class="h-full bg-purple-400 w-0 transition-all duration-300"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Central Gauge & Test Control -->
+        <div class="w-full max-w-4xl p-8 rounded-3xl bg-cardbg/90 border border-slate-800 shadow-2xl relative flex flex-col items-center justify-center">
+            
+            <!-- Phase Indicator -->
+            <div id="phase-badge" class="mb-4 px-4 py-1.5 rounded-full bg-slate-900 border border-slate-700/80 text-xs font-medium text-slate-300 flex items-center space-x-2">
+                <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
+                <span id="phase-text">Click Start to begin network diagnostic</span>
+            </div>
+
+            <!-- Speedometer / Gauge Canvas -->
+            <div class="relative w-72 h-72 sm:w-80 sm:h-80 flex items-center justify-center my-2">
+                <canvas id="gaugeCanvas" width="320" height="320" class="w-full h-full"></canvas>
+
+                <!-- Center Gauge Content -->
+                <div class="absolute inset-0 flex flex-col items-center justify-center text-center select-none pointer-events-none">
+                    <div id="gauge-label" class="text-xs uppercase font-bold tracking-widest text-slate-400 mb-1">READY</div>
+                    <div id="gauge-value" class="text-5xl sm:text-6xl font-black text-white tracking-tighter tabular-nums drop-shadow-md">0.0</div>
+                    <div id="gauge-unit" class="text-sm font-semibold text-cyan-400 mt-1">Mbps</div>
+                </div>
+
+                <!-- Start Button (visible when idle) -->
+                <button id="start-btn" class="absolute z-20 w-36 h-36 rounded-full bg-gradient-to-tr from-cyan-600 via-blue-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white font-extrabold text-xl tracking-wider uppercase shadow-2xl shadow-cyan-500/30 transition-all duration-300 hover:scale-105 active:scale-95 flex flex-col items-center justify-center border-4 border-slate-900/80">
+                    <span>GO</span>
+                    <span class="text-[10px] font-normal tracking-normal text-cyan-200 mt-0.5">Start Test</span>
+                </button>
+            </div>
+
+            <!-- Real-time Throughput Graph -->
+            <div class="w-full mt-6 pt-6 border-t border-slate-800/80">
+                <div class="flex items-center justify-between text-xs text-slate-400 mb-2">
+                    <span class="font-medium flex items-center gap-1.5"><i data-lucide="trending-up" class="w-3.5 h-3.5 text-cyan-400"></i> Real-time Throughput Graph</span>
+                    <div class="flex items-center space-x-4">
+                        <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-400"></span> Download</span>
+                        <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-purple-400"></span> Upload</span>
+                    </div>
+                </div>
+                <div class="h-44 w-full">
+                    <canvas id="throughputChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Result Summary Card (hidden until complete) -->
+            <div id="result-modal" class="hidden w-full mt-6 p-6 rounded-2xl bg-slate-900/90 border border-slate-700/80 animate-fade-in">
+                <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div class="text-center sm:text-left">
+                        <div class="flex items-center justify-center sm:justify-start gap-2">
+                            <span class="px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800 text-xs font-semibold">Test Completed</span>
+                            <span id="connection-rating" class="text-xs text-slate-300 font-medium">Quality: Excellent</span>
+                        </div>
+                        <p class="text-xs text-slate-400 mt-1">Results successfully recorded to server logs.</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <button id="restart-btn" class="px-5 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-semibold transition flex items-center gap-1.5 shadow-lg shadow-cyan-600/20">
+                            <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                            <span>Test Again</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Bot / Rate Limit Alert Box -->
+        <div id="error-alert" class="hidden w-full max-w-4xl mt-6 p-4 rounded-xl bg-rose-950/80 border border-rose-800 text-rose-200 text-sm flex items-start space-x-3">
+            <i data-lucide="alert-triangle" class="w-5 h-5 text-rose-400 flex-shrink-0 mt-0.5"></i>
+            <div class="flex-1" id="error-message">An error occurred during speed test.</div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-900 py-6 text-center text-xs text-slate-500">
+        <div class="max-w-6xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+            <div>&copy; SpeedTest & Network Connection Checker &bull; Open Source under MIT License</div>
+            <div class="flex items-center space-x-4">
+                <a href="/data" class="hover:text-cyan-400 transition">Admin Panel (/data)</a>
+                <span>&bull;</span>
+                <span class="text-slate-600">Rate Limit: 10/hour</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Speedtest JS -->
+    <script src="/static/js/speedtest.js"></script>
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+</html>

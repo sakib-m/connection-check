@@ -1,0 +1,25 @@
+# Binaries
+connection-check
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Database & persistence files
+data/
+*.db
+*.db-wal
+*.db-shm
+
+# Caddy data
+.caddy/
+caddy/data/
+caddy/config/
+
+# OS and Editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.log

@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Connection Check & Diagnostics</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        darkbg: '#0B0F19',
+                        cardbg: '#111827',
+                    }
+                }
+            }
+        }
+    </script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="bg-darkbg text-slate-100 min-h-screen flex flex-col font-sans" data-is-default-password="{{.IsDefaultPassword}}">
+
+    <!-- Top Navigation -->
+    <header class="border-b border-slate-800 bg-slate-950/70 backdrop-blur-md sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+                    <i data-lucide="shield" class="w-5 h-5 text-white"></i>
+                </div>
+                <div>
+                    <span class="font-bold text-base tracking-tight text-white">Control Panel</span>
+                    <span class="text-[11px] ml-1.5 px-2 py-0.5 rounded-full bg-cyan-950 text-cyan-400 border border-cyan-800">/data</span>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-4">
+                <a href="/" target="_blank" class="text-xs text-slate-400 hover:text-cyan-400 flex items-center gap-1 transition">
+                    <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+                    <span>Open Public Speedtest</span>
+                </a>
+                <span class="text-slate-700">|</span>
+                <div class="flex items-center space-x-2">
+                    <span class="text-xs text-slate-300 font-medium">admin</span>
+                    <a href="/data/logout" class="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-900 transition" title="Logout">
+                        <i data-lucide="log-out" class="w-4 h-4"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- First Initialization Password Change Alert Banner (if default password) -->
+    {{if .IsDefaultPassword}}
+    <div id="default-pass-banner" class="bg-gradient-to-r from-amber-950 via-rose-950 to-amber-950 border-b border-rose-800 px-4 py-3 text-rose-200 text-xs flex items-center justify-between">
+        <div class="max-w-7xl mx-auto w-full flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+                <i data-lucide="alert-octagon" class="w-4 h-4 text-rose-400 flex-shrink-0"></i>
+                <span><strong>Security Alert:</strong> You are using the default admin password (admin123). You must update it immediately to secure your server.</span>
+            </div>
+            <button onclick="openChangePasswordModal()" class="px-3 py-1 rounded bg-rose-600 hover:bg-rose-500 text-white font-semibold transition">
+                Change Password Now
+            </button>
+        </div>
+    </div>
+    {{end}}
+
+    <!-- Main Admin Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 py-8">
+
+        <!-- Tabs Navigation -->
+        <div class="flex items-center space-x-2 border-b border-slate-800 pb-3 mb-6 overflow-x-auto">
+            <button onclick="switchTab('overview')" id="tab-btn-overview" class="tab-btn active px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 bg-slate-800 text-cyan-400 transition">
+                <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+                <span>Overview</span>
+            </button>
+            <button onclick="switchTab('tests')" id="tab-btn-tests" class="tab-btn px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-900 transition">
+                <i data-lucide="list" class="w-4 h-4"></i>
+                <span>Speedtest Logs</span>
+            </button>
+            <button onclick="switchTab('bots')" id="tab-btn-bots" class="tab-btn px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-900 transition">
+                <i data-lucide="shield-alert" class="w-4 h-4"></i>
+                <span>Blocked Bots (<span id="tab-bots-badge">0</span>)</span>
+            </button>
+            <button onclick="switchTab('domain')" id="tab-btn-domain" class="tab-btn px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-900 transition">
+                <i data-lucide="globe" class="w-4 h-4"></i>
+                <span>Domain & SSL (FQDN)</span>
+            </button>
+            <button onclick="switchTab('security')" id="tab-btn-security" class="tab-btn px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-900 transition">
+                <i data-lucide="key" class="w-4 h-4"></i>
+                <span>Security</span>
+            </button>
+        </div>
+
+        <!-- TAB 1: OVERVIEW -->
+        <section id="tab-overview" class="tab-content space-y-6">
+            <!-- Stats Cards Grid -->
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                <div class="p-4 rounded-2xl bg-cardbg border border-slate-800">
+                    <div class="text-[11px] text-slate-400 uppercase font-medium">Total Tests</div>
+                    <div id="stat-total-tests" class="text-2xl font-bold text-white mt-1">--</div>
+                </div>
+                <div class="p-4 rounded-2xl bg-cardbg border border-slate-800">
+                    <div class="text-[11px] text-slate-400 uppercase font-medium">Tests (24h)</div>
+                    <div id="stat-tests-24h" class="text-2xl font-bold text-cyan-400 mt-1">--</div>
+                </div>
+                <div class="p-4 rounded-2xl bg-cardbg border border-slate-800">
+                    <div class="text-[11px] text-slate-400 uppercase font-medium">Avg Download</div>
+                    <div id="stat-avg-down" class="text-2xl font-bold text-emerald-400 mt-1">-- Mbps</div>
+                </div>
+                <div class="p-4 rounded-2xl bg-cardbg border border-slate-800">
+                    <div class="text-[11px] text-slate-400 uppercase font-medium">Avg Upload</div>
+                    <div id="stat-avg-up" class="text-2xl font-bold text-purple-400 mt-1">-- Mbps</div>
+                </div>
+                <div class="p-4 rounded-2xl bg-cardbg border border-slate-800">
+                    <div class="text-[11px] text-slate-400 uppercase font-medium">Avg Ping / Jitter</div>
+                    <div id="stat-avg-ping" class="text-2xl font-bold text-amber-400 mt-1">-- ms</div>
+                </div>
+                <div class="p-4 rounded-2xl bg-cardbg border border-slate-800">
+                    <div class="text-[11px] text-slate-400 uppercase font-medium">Blocked Bots</div>
+                    <div id="stat-blocked-bots" class="text-2xl font-bold text-rose-400 mt-1">--</div>
+                </div>
+            </div>
+
+            <!-- Domain / SSL Quick Card -->
+            <div class="p-6 rounded-2xl bg-cardbg border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div class="flex items-center space-x-4">
+                    <div class="p-3 rounded-2xl bg-cyan-950 text-cyan-400 border border-cyan-800">
+                        <i data-lucide="lock" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <div class="text-sm font-semibold text-white">FQDN & Automated Let's Encrypt SSL</div>
+                        <div class="text-xs text-slate-400 mt-0.5">
+                            Configured Domain: <strong id="overview-fqdn" class="text-slate-200">Not configured yet</strong> &bull;
+                            SSL Status: <span id="overview-ssl-status" class="px-2 py-0.5 rounded text-[11px] bg-slate-800 text-slate-400 font-medium">Pending</span>
+                        </div>
+                    </div>
+                </div>
+                <button onclick="switchTab('domain')" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-cyan-400 transition flex items-center gap-1.5">
+                    <i data-lucide="settings" class="w-3.5 h-3.5"></i>
+                    <span>Configure FQDN & SSL</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- TAB 2: SPEEDTEST LOGS -->
+        <section id="tab-tests" class="tab-content hidden space-y-4">
+            <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div class="relative w-full sm:w-80">
+                    <input type="text" id="tests-search" placeholder="Search IP, ISP, City, Country..."
+                        class="w-full bg-slate-900 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs text-slate-100 focus:outline-none focus:border-cyan-500">
+                    <i data-lucide="search" class="w-4 h-4 text-slate-500 absolute left-3 top-2.5"></i>
+                </div>
+                <div class="flex items-center space-x-3 w-full sm:w-auto justify-end">
+                    <button onclick="loadTests(1)" class="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition" title="Refresh">
+                        <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                    </button>
+                    <a href="/data/api/export-tests" target="_blank" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-white transition flex items-center gap-1.5">
+                        <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                        <span>Export CSV</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Tests Table -->
+            <div class="rounded-2xl bg-cardbg border border-slate-800 overflow-hidden shadow-xl">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-slate-900/80 text-slate-400 border-b border-slate-800">
+                            <tr>
+                                <th class="py-3 px-4">Timestamp (UTC)</th>
+                                <th class="py-3 px-4">Client IP</th>
+                                <th class="py-3 px-4">Download</th>
+                                <th class="py-3 px-4">Upload</th>
+                                <th class="py-3 px-4">Ping</th>
+                                <th class="py-3 px-4">Jitter</th>
+                                <th class="py-3 px-4">ISP / Org</th>
+                                <th class="py-3 px-4">Location</th>
+                                <th class="py-3 px-4">User Agent</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tests-table-body" class="divide-y divide-slate-800/60 text-slate-300">
+                            <tr><td colspan="9" class="py-8 text-center text-slate-500">Loading tests records...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                <div class="px-4 py-3 bg-slate-900/60 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
+                    <div id="tests-page-info">Showing page 1</div>
+                    <div class="flex items-center space-x-2">
+                        <button id="tests-prev-btn" onclick="prevTestsPage()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed">Previous</button>
+                        <button id="tests-next-btn" onclick="nextTestsPage()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed">Next</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 3: BLOCKED BOTS (UP TO 10,000 ROWS) -->
+        <section id="tab-bots" class="tab-content hidden space-y-4">
+            <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div class="relative w-full sm:w-80">
+                    <input type="text" id="bots-search" placeholder="Search IP, User-Agent, Reason..."
+                        class="w-full bg-slate-900 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs text-slate-100 focus:outline-none focus:border-cyan-500">
+                    <i data-lucide="search" class="w-4 h-4 text-slate-500 absolute left-3 top-2.5"></i>
+                </div>
+                <div class="flex items-center space-x-3 w-full sm:w-auto justify-end">
+                    <button onclick="loadBots(1)" class="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition" title="Refresh">
+                        <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                    </button>
+                    <button onclick="clearBots()" class="px-3.5 py-2 rounded-xl bg-rose-950/60 hover:bg-rose-900 text-rose-300 border border-rose-800 text-xs font-semibold transition flex items-center gap-1.5">
+                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                        <span>Clear Logs</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Bot Log Table -->
+            <div class="rounded-2xl bg-cardbg border border-slate-800 overflow-hidden shadow-xl">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-slate-900/80 text-slate-400 border-b border-slate-800">
+                            <tr>
+                                <th class="py-3 px-4">Timestamp (UTC)</th>
+                                <th class="py-3 px-4">Source IP</th>
+                                <th class="py-3 px-4">Block Reason</th>
+                                <th class="py-3 px-4">Path</th>
+                                <th class="py-3 px-4">User Agent</th>
+                            </tr>
+                        </thead>
+                        <tbody id="bots-table-body" class="divide-y divide-slate-800/60 text-slate-300">
+                            <tr><td colspan="5" class="py-8 text-center text-slate-500">Loading blocked bot records...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                <div class="px-4 py-3 bg-slate-900/60 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
+                    <div id="bots-page-info">Showing page 1</div>
+                    <div class="flex items-center space-x-2">
+                        <button id="bots-prev-btn" onclick="prevBotsPage()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed">Previous</button>
+                        <button id="bots-next-btn" onclick="nextBotsPage()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed">Next</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 4: DOMAIN & LET'S ENCRYPT SSL (FQDN) -->
+        <section id="tab-domain" class="tab-content hidden space-y-6">
+            <div class="p-6 rounded-2xl bg-cardbg border border-slate-800 shadow-xl max-w-3xl">
+                <div class="flex items-center space-x-3 mb-4">
+                    <div class="p-2.5 rounded-xl bg-cyan-950 text-cyan-400 border border-cyan-800">
+                        <i data-lucide="globe" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-base font-bold text-white">Fully Qualified Domain Name (FQDN) & SSL</h2>
+                        <p class="text-xs text-slate-400">Point your custom domain and automatically provision Let's Encrypt SSL certificates.</p>
+                    </div>
+                </div>
+
+                <!-- DNS Guide Box -->
+                <div class="mb-6 p-4 rounded-xl bg-slate-900/80 border border-slate-800 text-xs text-slate-300 space-y-2">
+                    <div class="font-semibold text-cyan-400 flex items-center gap-1.5">
+                        <i data-lucide="help-circle" class="w-4 h-4"></i>
+                        <span>How to point your domain in your DNS control panel:</span>
+                    </div>
+                    <ol class="list-decimal list-inside space-y-1 text-slate-400">
+                        <li>Log into your DNS provider (Cloudflare, Namecheap, Route53, GoDaddy, etc.).</li>
+                        <li>Create an <strong>A Record</strong> with Name e.g. <code class="text-cyan-300 bg-slate-800 px-1 py-0.5 rounded">speed</code> pointing to your server's public IPv4 address.</li>
+                        <li>Once saved, enter the full domain name below (e.g. <code class="text-cyan-300 bg-slate-800 px-1 py-0.5 rounded">speed.yourdomain.com</code>).</li>
+                        <li>Click <strong>"Verify DNS & Generate Let's Encrypt SSL"</strong>. The server will verify the DNS record and instruct Caddy to issue SSL certificates on ports 80/443.</li>
+                    </ol>
+                </div>
+
+                <!-- Domain Setup Form -->
+                <form id="fqdn-form" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5" for="fqdn-input">Domain Name (FQDN)</label>
+                        <div class="flex items-center space-x-2">
+                            <input type="text" id="fqdn-input" placeholder="e.g. speed.yourdomain.com"
+                                class="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-cyan-500">
+                            <button type="button" id="save-domain-btn" onclick="saveDomainOnly()" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 transition">
+                                Save Domain
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- SSL Verification Trigger Button -->
+                    <div class="pt-2">
+                        <button type="button" id="verify-ssl-btn" onclick="verifyDNSAndSSL()"
+                            class="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white font-semibold text-xs shadow-lg shadow-emerald-600/20 transition flex items-center justify-center gap-2">
+                            <i data-lucide="shield-check" class="w-4 h-4"></i>
+                            <span>Verify DNS & Generate Let's Encrypt SSL</span>
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Verification Feedback Results -->
+                <div id="ssl-feedback" class="hidden mt-6 p-4 rounded-xl border text-xs"></div>
+            </div>
+        </section>
+
+        <!-- TAB 5: SECURITY -->
+        <section id="tab-security" class="tab-content hidden space-y-6">
+            <div class="p-6 rounded-2xl bg-cardbg border border-slate-800 shadow-xl max-w-xl">
+                <div class="flex items-center space-x-3 mb-4">
+                    <div class="p-2.5 rounded-xl bg-cyan-950 text-cyan-400 border border-cyan-800">
+                        <i data-lucide="lock" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-base font-bold text-white">Change Admin Password</h2>
+                        <p class="text-xs text-slate-400">Update your administrator credentials.</p>
+                    </div>
+                </div>
+
+                <div id="pwd-change-alert" class="hidden mb-4 p-3 rounded-xl border text-xs font-medium"></div>
+
+                <form id="pwd-change-form" onsubmit="handlePasswordChange(event)" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1" for="curr-pwd">Current Password</label>
+                        <input type="password" id="curr-pwd" required placeholder="••••••••••••"
+                            class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-cyan-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1" for="new-pwd">New Password (min 8 chars)</label>
+                        <input type="password" id="new-pwd" required minlength="8" placeholder="••••••••••••"
+                            class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-cyan-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1" for="confirm-pwd">Confirm New Password</label>
+                        <input type="password" id="confirm-pwd" required minlength="8" placeholder="••••••••••••"
+                            class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-cyan-500">
+                    </div>
+                    <button type="submit" id="pwd-submit-btn" class="w-full py-3 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-semibold text-xs transition">
+                        Update Password
+                    </button>
+                </form>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- First Initialization Mandatory Password Change Modal -->
+    <div id="mandatory-pwd-modal" class="hidden fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="w-full max-w-md bg-cardbg border border-rose-800/80 rounded-3xl p-6 shadow-2xl relative">
+            <div class="flex items-center space-x-3 mb-4">
+                <div class="p-3 rounded-2xl bg-rose-950 text-rose-400 border border-rose-800">
+                    <i data-lucide="shield-alert" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h3 class="text-base font-bold text-white">First Initialization Required</h3>
+                    <p class="text-xs text-slate-400">You must change default credentials (admin123) to continue.</p>
+                </div>
+            </div>
+
+            <div id="modal-pwd-alert" class="hidden mb-4 p-3 rounded-xl border text-xs font-medium"></div>
+
+            <form id="modal-pwd-form" onsubmit="handleModalPasswordChange(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1" for="modal-curr-pwd">Current Password</label>
+                    <input type="password" id="modal-curr-pwd" value="admin123" required
+                        class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-cyan-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1" for="modal-new-pwd">New Strong Password</label>
+                    <input type="password" id="modal-new-pwd" required minlength="8" placeholder="At least 8 characters"
+                        class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-cyan-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1" for="modal-confirm-pwd">Confirm New Password</label>
+                    <input type="password" id="modal-confirm-pwd" required minlength="8" placeholder="Repeat new password"
+                        class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-cyan-500">
+                </div>
+                <button type="submit" id="modal-pwd-btn" class="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-semibold text-xs shadow-lg shadow-cyan-600/25 transition">
+                    Set New Password & Continue
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Admin JS -->
+    <script src="/static/js/admin.js"></script>
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+</html>
