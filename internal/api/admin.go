@@ -13,24 +13,21 @@ import (
 )
 
 type AdminHandler struct {
-	database   *db.DB
-	auth       *AuthHandler
-	sslManager *SSLManager
-	templates  *template.Template
+	database  *db.DB
+	auth      *AuthHandler
+	templates *template.Template
 }
 
-func NewAdminHandler(database *db.DB, auth *AuthHandler, sslManager *SSLManager, tmpl *template.Template) *AdminHandler {
+func NewAdminHandler(database *db.DB, auth *AuthHandler, tmpl *template.Template) *AdminHandler {
 	return &AdminHandler{
-		database:   database,
-		auth:       auth,
-		sslManager: sslManager,
-		templates:  tmpl,
+		database:  database,
+		auth:      auth,
+		templates: tmpl,
 	}
 }
 
 // ServeLoginPage renders the admin login screen.
 func (a *AdminHandler) ServeLoginPage(w http.ResponseWriter, r *http.Request) {
-	// If already logged in, redirect to dashboard
 	if _, ok := a.auth.GetSessionFromRequest(r); ok {
 		http.Redirect(w, r, "/data", http.StatusSeeOther)
 		return
@@ -101,7 +98,7 @@ func (a *AdminHandler) GetTests(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// ExportTestsCSV exports tests logs to downloadable CSV file.
+// ExportTestsCSV exports test logs to downloadable CSV file.
 func (a *AdminHandler) ExportTestsCSV(w http.ResponseWriter, r *http.Request) {
 	results, _, err := a.database.GetTestResults(10000, 0, "")
 	if err != nil {
@@ -116,7 +113,6 @@ func (a *AdminHandler) ExportTestsCSV(w http.ResponseWriter, r *http.Request) {
 	writer := csv.NewWriter(w)
 	defer writer.Flush()
 
-	// Write CSV Header
 	_ = writer.Write([]string{"ID", "Timestamp (UTC)", "IP", "Download (Mbps)", "Upload (Mbps)", "Ping (ms)", "Jitter (ms)", "ISP", "City", "Country", "User Agent"})
 
 	for _, item := range results {
@@ -177,70 +173,4 @@ func (a *AdminHandler) ClearBotLogs(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]bool{"success": true})
-}
-
-// SaveDomain saves the FQDN setting.
-func (a *AdminHandler) SaveDomain(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	var req struct {
-		FQDN string `json:"fqdn"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid payload", http.StatusBadRequest)
-		return
-	}
-
-	if err := a.sslManager.ValidateDomain(req.FQDN); err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
-		return
-	}
-
-	if err := a.database.SetSetting("fqdn", req.FQDN); err != nil {
-		http.Error(w, "Failed to save domain", http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]interface{}{
-		"success": true,
-		"fqdn":    req.FQDN,
-	})
-}
-
-// VerifyDNSAndSSL verifies DNS resolution and triggers Let's Encrypt SSL issuance.
-func (a *AdminHandler) VerifyDNSAndSSL(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	var req struct {
-		FQDN string `json:"fqdn"`
-	}
-	_ = json.NewDecoder(r.Body).Decode(&req)
-
-	targetFQDN := req.FQDN
-	if targetFQDN == "" {
-		savedFQDN, err := a.database.GetSetting("fqdn")
-		if err != nil || savedFQDN == "" {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusBadRequest)
-			_ = json.NewEncoder(w).Encode(map[string]string{
-				"error": "FQDN is not specified. Please configure your domain name first.",
-			})
-			return
-		}
-		targetFQDN = savedFQDN
-	}
-
-	result, _ := a.sslManager.VerifyDNSAndIssueSSL(targetFQDN)
-
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(result)
 }

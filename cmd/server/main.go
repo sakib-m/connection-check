@@ -51,10 +51,9 @@ func main() {
 	ipLookup := api.NewIPLookupService()
 	rateLimiter := api.NewRateLimiter(10) // 10 tests per hour max per IP
 	botGuard := api.NewBotGuard(database)
-	sslManager := api.NewSSLManager(database)
 	authHandler := api.NewAuthHandler(database)
 	speedtestHandler := api.NewSpeedTestHandler(database, ipLookup, rateLimiter)
-	adminHandler := api.NewAdminHandler(database, authHandler, sslManager, tmpl)
+	adminHandler := api.NewAdminHandler(database, authHandler, tmpl)
 
 	// Build Router
 	router := api.NewRouter(
@@ -63,7 +62,6 @@ func main() {
 		botGuard,
 		speedtestHandler,
 		adminHandler,
-		sslManager,
 		tmpl,
 		staticDir,
 	)
@@ -78,7 +76,7 @@ func main() {
 
 	// Server banner
 	fmt.Println("==================================================================")
-	fmt.Printf("🚀 Connection Check & Speedtest Service is running on http://0.0.0.0:%s\n", port)
+	fmt.Printf("🚀 Connection Check & Speedtest Service running on port %s\n", port)
 	fmt.Println("🌐 Public Speedtest UI:  http://localhost:" + port)
 	fmt.Println("🔒 Admin Panel URL:      http://localhost:" + port + "/data")
 	fmt.Println("🔑 Default Credentials:  admin / admin123 (Password change required on first login)")

@@ -49,14 +49,6 @@ type AdminUser struct {
 	UpdatedAt         time.Time `json:"updated_at"`
 }
 
-// SystemSettings holds configurable site settings like FQDN.
-type SystemSettings struct {
-	FQDN         string    `json:"fqdn"`
-	SSLEnabled   bool      `json:"ssl_enabled"`
-	LastSSLCheck time.Time `json:"last_ssl_check"`
-	SSLStatus    string    `json:"ssl_status"`
-}
-
 // DashboardStats contains summary statistics for the admin dashboard.
 type DashboardStats struct {
 	TotalTests      int64   `json:"total_tests"`
@@ -66,7 +58,5 @@ type DashboardStats struct {
 	AvgPingMs       float64 `json:"avg_ping_ms"`
 	AvgJitterMs     float64 `json:"avg_jitter_ms"`
 	BlockedBots     int64   `json:"blocked_bots"`
-	FQDN            string  `json:"fqdn"`
-	SSLStatus       string  `json:"ssl_status"`
 	IsDefaultPass   bool    `json:"is_default_pass"`
 }

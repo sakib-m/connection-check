@@ -3,17 +3,16 @@ FROM golang:1.22-alpine AS builder
 
 WORKDIR /build
 
-# Install git and ca-certificates if needed for module downloads
+# Install git and ca-certificates for module downloads
 RUN apk add --no-cache git ca-certificates
 
-# Cache dependencies
-COPY go.mod go.sum* ./
-RUN go mod download
-
-# Copy source code
+# Copy all source files
 COPY . .
 
-# Build pure Go binary (CGO_ENABLED=0)
+# Tidy and download dependencies, generating go.sum inside build container
+RUN go mod tidy && go mod download
+
+# Build pure Go static binary (CGO_ENABLED=0)
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o connection-check ./cmd/server
 
 # Final Runtime Stage
@@ -34,8 +33,7 @@ COPY --from=builder /build/web /app/web
 ENV PORT=3000 \
     DB_PATH=/app/data/speedtest.db \
     TEMPLATES_DIR=/app/web/templates \
-    STATIC_DIR=/app/web/static \
-    CADDY_ADMIN_URL=http://caddy:2019
+    STATIC_DIR=/app/web/static
 
 EXPOSE 3000
 

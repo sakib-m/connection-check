@@ -9,15 +9,14 @@ import (
 )
 
 type Router struct {
-	mux         *http.ServeMux
-	db          *db.DB
-	auth        *AuthHandler
-	botGuard    *BotGuard
-	speedtest   *SpeedTestHandler
-	admin       *AdminHandler
-	sslManager  *SSLManager
-	templates   *template.Template
-	staticPath  string
+	mux        *http.ServeMux
+	db         *db.DB
+	auth       *AuthHandler
+	botGuard   *BotGuard
+	speedtest  *SpeedTestHandler
+	admin      *AdminHandler
+	templates  *template.Template
+	staticPath string
 }
 
 func NewRouter(
@@ -26,7 +25,6 @@ func NewRouter(
 	botGuard *BotGuard,
 	speedtest *SpeedTestHandler,
 	admin *AdminHandler,
-	sslManager *SSLManager,
 	tmpl *template.Template,
 	staticDir string,
 ) *Router {
@@ -37,7 +35,6 @@ func NewRouter(
 		botGuard:   botGuard,
 		speedtest:  speedtest,
 		admin:      admin,
-		sslManager: sslManager,
 		templates:  tmpl,
 		staticPath: staticDir,
 	}
@@ -95,19 +92,15 @@ func (r *Router) setupRoutes() {
 	r.mux.HandleFunc("/data/api/export-tests", r.auth.RequireAuth(r.admin.ExportTestsCSV))
 	r.mux.HandleFunc("/data/api/bots", r.auth.RequireAuth(r.admin.GetBotLogs))
 	r.mux.HandleFunc("/data/api/clear-bots", r.auth.RequireAuth(r.admin.ClearBotLogs))
-	r.mux.HandleFunc("/data/api/settings/domain", r.auth.RequireAuth(r.admin.SaveDomain))
-	r.mux.HandleFunc("/data/api/settings/verify-ssl", r.auth.RequireAuth(r.admin.VerifyDNSAndSSL))
 	r.mux.HandleFunc("/data/api/change-password", r.auth.RequireAuth(r.auth.HandleChangePassword))
 }
 
 // ServeHTTP implements http.Handler with global CORS and basic security headers.
 func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	// Basic security headers
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("X-Frame-Options", "SAMEORIGIN")
 	w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
 
-	// Allow origin for WebSocket & local assets
 	if strings.HasPrefix(req.URL.Path, "/api/speedtest") {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")

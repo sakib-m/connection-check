@@ -33,7 +33,7 @@ func InitDB(dbPath string) (*DB, error) {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
 
-	conn.SetMaxOpenConns(1) // SQLite is single-writer friendly
+	conn.SetMaxOpenConns(1) // SQLite single-writer friendly
 	conn.SetMaxIdleConns(1)
 
 	database := &DB{conn: conn}
@@ -85,11 +85,6 @@ func (d *DB) migrate() error {
 			path TEXT NOT NULL
 		);`,
 		`CREATE INDEX IF NOT EXISTS idx_bot_logs_timestamp ON bot_logs(timestamp DESC);`,
-		`CREATE TABLE IF NOT EXISTS settings (
-			key TEXT PRIMARY KEY,
-			value TEXT NOT NULL,
-			updated_at DATETIME NOT NULL
-		);`,
 	}
 
 	for _, query := range queries {
@@ -265,8 +260,7 @@ func (d *DB) SaveBotLog(logItem *models.BotLog) error {
 		return err
 	}
 
-	// Prune older rows beyond 10,000 to keep database compact and within 10,000 limit
-	// Run efficiently using subquery
+	// Prune older rows beyond 10,000
 	_, _ = d.conn.Exec(`
 		DELETE FROM bot_logs 
 		WHERE id NOT IN (
@@ -332,31 +326,6 @@ func (d *DB) ClearBotLogs() error {
 	return err
 }
 
-// GetSetting gets a configuration value.
-func (d *DB) GetSetting(key string) (string, error) {
-	d.mu.RLock()
-	defer d.mu.RUnlock()
-
-	var val string
-	err := d.conn.QueryRow("SELECT value FROM settings WHERE key = ?", key).Scan(&val)
-	if err == sql.ErrNoRows {
-		return "", nil
-	}
-	return val, err
-}
-
-// SetSetting sets a configuration value.
-func (d *DB) SetSetting(key, value string) error {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-
-	_, err := d.conn.Exec(`
-		INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?)
-		ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
-	`, key, value, time.Now().UTC())
-	return err
-}
-
 // GetDashboardStats aggregates live metrics.
 func (d *DB) GetDashboardStats() (*models.DashboardStats, error) {
 	d.mu.RLock()
@@ -387,10 +356,6 @@ func (d *DB) GetDashboardStats() (*models.DashboardStats, error) {
 	var isDefault int
 	_ = d.conn.QueryRow(`SELECT is_default_password FROM users WHERE username = 'admin'`).Scan(&isDefault)
 	stats.IsDefaultPass = (isDefault == 1)
-
-	// FQDN and SSL settings
-	_ = d.conn.QueryRow(`SELECT value FROM settings WHERE key = 'fqdn'`).Scan(&stats.FQDN)
-	_ = d.conn.QueryRow(`SELECT value FROM settings WHERE key = 'ssl_status'`).Scan(&stats.SSLStatus)
 
 	return stats, nil
 }

@@ -72,22 +72,6 @@ async function loadStats() {
 
         const badge = document.getElementById('tab-bots-badge');
         if (badge) badge.textContent = data.blocked_bots.toLocaleString();
-
-        if (data.fqdn) {
-            const fqdnInput = document.getElementById('fqdn-input');
-            if (fqdnInput && !fqdnInput.value) fqdnInput.value = data.fqdn;
-            document.getElementById('overview-fqdn').textContent = data.fqdn;
-        }
-
-        const sslBadge = document.getElementById('overview-ssl-status');
-        if (sslBadge) {
-            if (data.ssl_status === 'active') {
-                sslBadge.className = 'px-2 py-0.5 rounded text-[11px] bg-emerald-950 text-emerald-400 border border-emerald-800 font-semibold';
-                sslBadge.textContent = 'Active (HTTPS)';
-            } else if (data.ssl_status) {
-                sslBadge.textContent = data.ssl_status;
-            }
-        }
     } catch (e) {
         console.error('Failed to load stats:', e);
     }
@@ -218,95 +202,7 @@ async function clearBots() {
 }
 
 // ------------------------------------------------------------------
-// 4. Domain & Let's Encrypt SSL
-// ------------------------------------------------------------------
-async function saveDomainOnly() {
-    const fqdn = document.getElementById('fqdn-input').value.trim();
-    if (!fqdn) {
-        alert('Please enter a valid domain name (FQDN).');
-        return;
-    }
-
-    try {
-        const res = await fetch('/data/api/settings/domain', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fqdn })
-        });
-        const data = await res.json();
-        if (res.ok) {
-            alert(`Domain saved as "${data.fqdn}". You can now verify DNS and provision SSL.`);
-            loadStats();
-        } else {
-            alert(data.error || 'Failed to save domain.');
-        }
-    } catch (e) {
-        alert('Server communication error.');
-    }
-}
-
-async function verifyDNSAndSSL() {
-    const fqdn = document.getElementById('fqdn-input').value.trim();
-    const btn = document.getElementById('verify-ssl-btn');
-    const feedback = document.getElementById('ssl-feedback');
-
-    if (!fqdn) {
-        alert('Please specify the domain name (FQDN) first.');
-        return;
-    }
-
-    btn.disabled = true;
-    btn.innerHTML = `<svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg> Verifying DNS & Generating SSL...`;
-    feedback.classList.add('hidden');
-
-    try {
-        const res = await fetch('/data/api/settings/verify-ssl', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fqdn })
-        });
-
-        const data = await res.json();
-        feedback.classList.remove('hidden');
-
-        if (data.success) {
-            feedback.className = 'mt-6 p-4 rounded-xl border bg-emerald-950/70 border-emerald-800 text-emerald-200 text-xs space-y-2';
-            feedback.innerHTML = `
-                <div class="font-bold flex items-center gap-1.5 text-emerald-300">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                    <span>DNS Verified & Caddy SSL Provisioned</span>
-                </div>
-                <p>${escapeHTML(data.message)}</p>
-                <div class="pt-1 text-[11px] text-emerald-400">
-                    Target Domain: <strong>${escapeHTML(data.fqdn)}</strong> &bull; Resolved IPs: <strong>${(data.resolved_ips || []).join(', ')}</strong>
-                </div>
-                <div class="pt-2 text-slate-300">
-                    You can now access your application via: <a href="https://${escapeHTML(data.fqdn)}" target="_blank" class="underline text-cyan-400 font-semibold">https://${escapeHTML(data.fqdn)}</a>
-                </div>
-            `;
-            loadStats();
-        } else {
-            feedback.className = 'mt-6 p-4 rounded-xl border bg-rose-950/70 border-rose-800 text-rose-200 text-xs space-y-2';
-            feedback.innerHTML = `
-                <div class="font-bold flex items-center gap-1.5 text-rose-300">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                    <span>DNS Verification Failed</span>
-                </div>
-                <p>${escapeHTML(data.message)}</p>
-            `;
-        }
-    } catch (e) {
-        feedback.className = 'mt-6 p-4 rounded-xl border bg-rose-950/70 border-rose-800 text-rose-200 text-xs';
-        feedback.textContent = 'Failed to execute DNS check: ' + e.message;
-        feedback.classList.remove('hidden');
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = `<span>Verify DNS & Generate Let's Encrypt SSL</span>`;
-    }
-}
-
-// ------------------------------------------------------------------
-// 5. Password Management & Mandatory First Initialization Modal
+// 4. Password Management & Mandatory First Initialization Modal
 // ------------------------------------------------------------------
 function openChangePasswordModal() {
     const modal = document.getElementById('mandatory-pwd-modal');

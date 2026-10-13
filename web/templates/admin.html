@@ -84,10 +84,6 @@
                 <i data-lucide="shield-alert" class="w-4 h-4"></i>
                 <span>Blocked Bots (<span id="tab-bots-badge">0</span>)</span>
             </button>
-            <button onclick="switchTab('domain')" id="tab-btn-domain" class="tab-btn px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-900 transition">
-                <i data-lucide="globe" class="w-4 h-4"></i>
-                <span>Domain & SSL (FQDN)</span>
-            </button>
             <button onclick="switchTab('security')" id="tab-btn-security" class="tab-btn px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-900 transition">
                 <i data-lucide="key" class="w-4 h-4"></i>
                 <span>Security</span>
@@ -124,24 +120,19 @@
                 </div>
             </div>
 
-            <!-- Domain / SSL Quick Card -->
-            <div class="p-6 rounded-2xl bg-cardbg border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <!-- Server Information Card -->
+            <div class="p-6 rounded-2xl bg-cardbg border border-slate-800 flex items-center justify-between">
                 <div class="flex items-center space-x-4">
                     <div class="p-3 rounded-2xl bg-cyan-950 text-cyan-400 border border-cyan-800">
-                        <i data-lucide="lock" class="w-6 h-6"></i>
+                        <i data-lucide="server" class="w-6 h-6"></i>
                     </div>
                     <div>
-                        <div class="text-sm font-semibold text-white">FQDN & Automated Let's Encrypt SSL</div>
+                        <div class="text-sm font-semibold text-white">Standalone Backend Service</div>
                         <div class="text-xs text-slate-400 mt-0.5">
-                            Configured Domain: <strong id="overview-fqdn" class="text-slate-200">Not configured yet</strong> &bull;
-                            SSL Status: <span id="overview-ssl-status" class="px-2 py-0.5 rounded text-[11px] bg-slate-800 text-slate-400 font-medium">Pending</span>
+                            Listening directly on port <strong class="text-cyan-400">3000</strong>. Ready for external Nginx or Apache reverse proxy integration with WebSocket forwarding.
                         </div>
                     </div>
                 </div>
-                <button onclick="switchTab('domain')" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-cyan-400 transition flex items-center gap-1.5">
-                    <i data-lucide="settings" class="w-3.5 h-3.5"></i>
-                    <span>Configure FQDN & SSL</span>
-                </button>
             </div>
         </section>
 
@@ -247,62 +238,7 @@
             </div>
         </section>
 
-        <!-- TAB 4: DOMAIN & LET'S ENCRYPT SSL (FQDN) -->
-        <section id="tab-domain" class="tab-content hidden space-y-6">
-            <div class="p-6 rounded-2xl bg-cardbg border border-slate-800 shadow-xl max-w-3xl">
-                <div class="flex items-center space-x-3 mb-4">
-                    <div class="p-2.5 rounded-xl bg-cyan-950 text-cyan-400 border border-cyan-800">
-                        <i data-lucide="globe" class="w-5 h-5"></i>
-                    </div>
-                    <div>
-                        <h2 class="text-base font-bold text-white">Fully Qualified Domain Name (FQDN) & SSL</h2>
-                        <p class="text-xs text-slate-400">Point your custom domain and automatically provision Let's Encrypt SSL certificates.</p>
-                    </div>
-                </div>
-
-                <!-- DNS Guide Box -->
-                <div class="mb-6 p-4 rounded-xl bg-slate-900/80 border border-slate-800 text-xs text-slate-300 space-y-2">
-                    <div class="font-semibold text-cyan-400 flex items-center gap-1.5">
-                        <i data-lucide="help-circle" class="w-4 h-4"></i>
-                        <span>How to point your domain in your DNS control panel:</span>
-                    </div>
-                    <ol class="list-decimal list-inside space-y-1 text-slate-400">
-                        <li>Log into your DNS provider (Cloudflare, Namecheap, Route53, GoDaddy, etc.).</li>
-                        <li>Create an <strong>A Record</strong> with Name e.g. <code class="text-cyan-300 bg-slate-800 px-1 py-0.5 rounded">speed</code> pointing to your server's public IPv4 address.</li>
-                        <li>Once saved, enter the full domain name below (e.g. <code class="text-cyan-300 bg-slate-800 px-1 py-0.5 rounded">speed.yourdomain.com</code>).</li>
-                        <li>Click <strong>"Verify DNS & Generate Let's Encrypt SSL"</strong>. The server will verify the DNS record and instruct Caddy to issue SSL certificates on ports 80/443.</li>
-                    </ol>
-                </div>
-
-                <!-- Domain Setup Form -->
-                <form id="fqdn-form" class="space-y-4">
-                    <div>
-                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5" for="fqdn-input">Domain Name (FQDN)</label>
-                        <div class="flex items-center space-x-2">
-                            <input type="text" id="fqdn-input" placeholder="e.g. speed.yourdomain.com"
-                                class="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-cyan-500">
-                            <button type="button" id="save-domain-btn" onclick="saveDomainOnly()" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 transition">
-                                Save Domain
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- SSL Verification Trigger Button -->
-                    <div class="pt-2">
-                        <button type="button" id="verify-ssl-btn" onclick="verifyDNSAndSSL()"
-                            class="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white font-semibold text-xs shadow-lg shadow-emerald-600/20 transition flex items-center justify-center gap-2">
-                            <i data-lucide="shield-check" class="w-4 h-4"></i>
-                            <span>Verify DNS & Generate Let's Encrypt SSL</span>
-                        </button>
-                    </div>
-                </form>
-
-                <!-- Verification Feedback Results -->
-                <div id="ssl-feedback" class="hidden mt-6 p-4 rounded-xl border text-xs"></div>
-            </div>
-        </section>
-
-        <!-- TAB 5: SECURITY -->
+        <!-- TAB 4: SECURITY -->
         <section id="tab-security" class="tab-content hidden space-y-6">
             <div class="p-6 rounded-2xl bg-cardbg border border-slate-800 shadow-xl max-w-xl">
                 <div class="flex items-center space-x-3 mb-4">
